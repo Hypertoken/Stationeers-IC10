@@ -77,3 +77,19 @@ yield
 l rArmIdle dArm Idle
 breq rArmIdle 0 -2
 j ra
+#-------------------------------------------------
+#define binHash HASH("StructureChuteBin")
+#loop:
+#yield
+#lbs r0 binHash 0 Occupied 0
+#breq r0 0 2
+#sb binHash Open 0
+#j loop
+#--------------------------------------------------
+#define hash HASH("StructureAdvancedComposter")
+#loop:
+#yield
+#lb r0 hash Quantity 0
+#brlt r0 5 2
+#sb hash Activate 1
+#j loop
