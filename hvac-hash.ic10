@@ -1,8 +1,8 @@
-# Controls up to 5 wall coolers
-alias GasSensor d0
+# Controls 1 wall cooler and 1 heater with PID
+alias gasSensor d0
 
 define COOLER -739292323
-define HEATER 24258244
+#define HEATER 24258244
 define LED -815193061
 define DIAL 554524804
 
@@ -10,20 +10,34 @@ alias setpoint r0
 alias current r1
 alias error r2
 alias bias r3
-alias kp r4
-alias pidout r5
+alias pidout r4
+alias currentTemp r5
+alias integral r6
+alias lastError r7
+alias derivative r8
 
+define hysteresis 0.2
+
+define Kp 5
+define Ki 0.01
+define Kd 0.05
+
+move setpoint 293.15 # 20C
+move bias 0.0 # Adjust this if the setpoint is off
+
+#Set these to 0 at start otherwise its buggy
+move integral 0.0
+move derivative 0.0
+
+#INITIAL DEVICE SETTINGS.
 sbn DIAL HASH("Thermostat") Setting 68
-
-move setpoint 294.15 # setpoint temperature in Kelvin
-move kp 5
-move bias 0.0
 
 start:
 yield
-l current GasSensor Temperature
+l currentTemp gasSensor Temperature #Read Temp From sensor
 
-move r10 current
+# Convert Kelvin to F and populate the LED Display
+move r10 currentTemp
 jal ConvertKToF
 sbn LED HASH("Led1") Setting r13
 
@@ -32,23 +46,50 @@ sbn LED HASH("Led2") Setting r10
 jal ConvertFToK
 move setpoint r13
 
-sub error setpoint current
-add error error bias
-mul pidout kp error # kp
-mul pidout pidout -1 # invert
+# PID calculations
+sub error setpoint currentTemp
+add integral integral error
+sub derivative error lastError
+
+# Calculate PID output
+#pidout = (Kp * error) + (Ki * integral) + (Kd * derivative) + bias
+mul r10 error Kp # P term
+mul r11 integral Ki # I term
+mul r12 derivative Kd # D term
+mul r13 r12 100
+add pidout r10 r11
+add pidout pidout r12
+add pidout pidout bias
 s db Setting pidout
+
 sbn LED HASH("PID") Setting pidout
 
-slt r9 4 pidout
-sbn COOLER HASH("Wall Cooler 5") On r9
-slt r9 3 pidout
-sbn COOLER HASH("Wall Cooler 4") On r9
-slt r9 2 pidout
-sbn COOLER HASH("Wall Cooler 3") On r9
-slt r9 1 pidout
-sbn COOLER HASH("Wall Cooler 2") On r9
-slt r9 0 pidout
-sbn COOLER HASH("Wall Cooler 1") On r9
+# Cooler logic (turns on when pidout is negative)
+slt r11 pidout -4
+sbn COOLER HASH("Wall Cooler 5") On r11
+slt r11 pidout -3
+sbn COOLER HASH("Wall Cooler 4") On r11
+slt r11 pidout -2
+sbn COOLER HASH("Wall Cooler 3") On r11
+slt r11 pidout -1
+sbn COOLER HASH("Wall Cooler 2") On r11
+mul r10 hysteresis -1
+slt r11 pidout r10
+sbn COOLER HASH("Wall Cooler 1") On r11
+
+# Heater logic (turns on when pidout is positive)
+sgt r11 pidout 4
+sbn HEATER HASH("Wall Heater 5") On r11
+sgt r11 pidout 3
+sbn HEATER HASH("Wall Heater 4") On r11
+slt r11 pidout 2
+sbn HEATER HASH("Wall Heater 3") On r11
+slt r11 pidout 1
+sbn HEATER HASH("Wall Heater 2") On r11
+sgt r11 pidout hysteresis
+sbn HEATER HASH("Wall Heater 1") On r11
+
+move lastError error
 j start
 
 ConvertKToF:
@@ -56,6 +97,7 @@ ConvertKToF:
 div r11 9 5
 mul r12 r10 r11
 sub r13 r12 459.67
+
 j ra
 
 ConvertFToK:
@@ -63,4 +105,5 @@ ConvertFToK:
 div r11 5 9
 add r12 r10 459.67
 mul r13 r12 r11
+
 j ra
