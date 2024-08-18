@@ -1,0 +1,97 @@
+# Controls 1 wall cooler and 1 heater with PID
+alias gasSensor d0
+alias wallHeater d1
+alias wallCooler d2
+alias Led1 d3 # Current Temp
+
+alias setpoint r0
+alias current r1
+alias error r2
+alias bias r3
+alias Kp r4
+alias pidout r5
+alias currentTemp r6
+alias integral r7
+alias lastError r8
+alias derivative r9
+
+define hysteresis 0.2
+define Ki 0.01
+define Kd 0.05
+
+move setpoint 298.15 #25C
+move Kp 5
+move bias 0.0
+move integral 0.0
+move derivative 0.0
+
+#INITIAL DEVICE STATES
+s wallHeater On 0
+s wallHeater Lock 1
+s wallCooler On 0
+s wallCooler Lock 1
+s Led1 Mode 0
+s Led1 Color 2
+
+start:
+yield
+l currentTemp gasSensor Temperature #Read Temp From sensor
+
+# Convert Kelvin to F and populate the LED Display
+move r10 currentTemp
+jal ConvertKToF
+s Led1 Setting r13
+
+sub r11 currentTemp setpoint
+s db Setting r11
+bgt r11 0.02 Red
+mul r11 r11 -1
+bgt r11 0.02 Purple
+Green:
+s Led1 Color 2#Green
+j PID
+Red:
+s Led1 Color 4 #Red
+j PID
+Purple:
+s Led1 Color 11 #Purple
+PID:
+# PID calculations
+sub error setpoint currentTemp
+add integral integral error
+sub derivative error lastError
+
+# Calculate PID output
+#pidout = (Kp * error) + (Ki * integral) + (Kd * derivative) + bias
+mul r10 error Kp # P term
+mul r11 integral Ki # I term
+mul r12 derivative Kd # D term
+add pidout r10 r11
+add pidout pidout r12
+add pidout pidout bias
+
+# Cooler logic (turns on when pidout is negative)
+mul r10 hysteresis -1
+slt r11 pidout r10
+s wallCooler On r11
+
+# New cooler power setting logic
+mul r12 pidout -1 # Invert PID output for cooling
+max r12 r12 0 # Ensure non-negative
+min r12 r12 100 # Clamp to 0-100 range
+s wallCooler Setting r12
+
+# Heater logic (turns on when pidout is positive)
+sgt r13 pidout hysteresis
+s wallHeater On r13
+
+move lastError error
+j start
+
+ConvertKToF:
+# F = K(9/5) - 459.67
+div r11 9 5
+mul r12 r10 r11
+sub r13 r12 459.67
+
+j ra
