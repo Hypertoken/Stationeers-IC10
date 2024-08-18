@@ -1,0 +1,117 @@
+alias Ku r0  # Ultimate gain
+alias Tu r1  # Ultimate period
+alias Kp r2  # Proportional gain
+alias Ki r3  # Integral gain
+alias Kd r4  # Derivative gain
+alias setpoint r5
+alias current r6
+alias error r7
+alias oscillationtime r8
+alias stepsize r9
+alias integral r10
+alias derivative r11
+alias previouserror r12
+alias gasSensor d0
+alias wallHeater d1
+alias wallCooler d2
+alias Led1 d3 # Current Temp
+alias Led2 d4 # Desired Temp
+alias Dial d5 # Temp Adjust
+move Ku 0  # Initialize ultimate gain to 0
+move Tu 0  # Initialize ultimate period to 0
+move Kp 1  # Initialize proportional gain to 1
+move Ki 0  # Initialize integral gain to 0
+move Kd 0  # Initialize derivative gain to 0
+move setpoint 293.15  # Set desired temperature
+move current 0  # Initialize current temperature to 0
+move error 0  # Initialize error to 0
+move oscillationtime 0  # Initialize oscillation time to 0
+move integral 0  # Initialize integral to 0
+move derivative 0  # Initialize derivative to 0
+move previouserror 0  # Initialize previous error to 0
+s wallCooler Setting 100
+findultimategain:
+move stepsize 0.1  # Set step size to 0.1
+add setpoint setpoint stepsize  # Increase setpoint by step size
+jal testsystem
+jal evaluateresponse
+gainloop:
+add Kp Kp stepsize  # Increase proportional gain by step size
+jal testsystem
+jal evaluateresponse
+beqz error gainloop  # If error is 0, exit loop
+move Ku Kp  # Set ultimate gain to proportional gain
+findultimateperiod:
+jal measureperiod
+move Tu oscillationtime  # Set ultimate period to oscillation time
+calculatepid:
+move Kp r2  # Kp = Ku * 0.6
+mul r13 Ku 0.6  # Calculate Kp
+move Kp r13
+move Ki r3  # Ki = Ku / (2 * Tu)
+div r13 Ku 2  # Calculate Ki
+mul r13 r13 Tu
+move Ki r13
+move Kd r4  # Kd = Ku * (Tu / 8)
+mul r13 Ku Tu  # Calculate Kd
+div r13 r13 8
+move Kd r13
+testsystem:
+l current gasSensor Temperature  # Read current temperature from gas sensor
+s Led1 Setting current  # Display current temperature on Led1
+sub error setpoint current  # Calculate error
+add integral integral error  # Calculate integral
+move derivative error  # Calculate derivative
+sub derivative derivative previouserror  # Calculate derivative
+move previouserror error  # Update previous error
+jal applypidoutput
+move current error  # Update current temperature
+j start
+applypidoutput:
+mul r12 Kp error  # Calculate proportional term
+mul r13 Ki integral  # Calculate integral term
+mul r14 Kd derivative  # Calculate derivative term
+add r15 r12 r13  # Calculate PID output
+add r15 r15 r14  # Calculate PID output
+sgt r10 r15 0  # Check if PID output is greater than 0
+slt r11 r15 0  # Check if PID output is less than 0
+s wallHeater On r10  # Turn on wall heater if PID output is greater than 0
+s wallCooler On r11  # Turn on wall cooler if PID output is less than 0
+slt r10 current setpoint  # Check if current temperature is less than setpoint
+beqz r10 resetintegral 
+j start
+resetintegral:
+move integral 0  # Reset integral term
+evaluateresponse:
+move r0 error  # Check if error is 0
+beqz r0 displaypid  # If error is 0, exit
+measureperiod:
+move r10 0  # Initialize counter to 0
+move r11 0  # Initialize previous error to 0
+periodloop:
+jal testsystem
+jal evaluateresponse
+move r12 error  # Get current error
+slt r13 r12 r11  # Check if error is less than previous error
+bnez r13 countperiod  # If error is less than previous error, increment counter
+j periodloop
+countperiod:
+add r10 r10 1  # Increment counter
+move r11 r12  # Update previous error
+slt r13 r10 10  # Check if counter is less than 10
+bnez r13 periodloop  # If counter is less than 10, loop again
+div oscillationtime r10 2  # Calculate oscillation time
+j start
+displaypid:
+s Led2 Setting Kp  # Display Kp on Led2
+sleep 2  # Wait 2 seconds
+s Led2 Setting Ki  # Display Ki on Led2
+sleep 2  # Wait 2 seconds
+s Led2 Setting Kd  # Display Kd on Led2
+sleep 2  # Wait 2 seconds
+j displaypid
+start:
+jal findultimategain
+jal findultimateperiod
+jal calculatepid
+jal displaypid
