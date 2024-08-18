@@ -1,0 +1,66 @@
+# Controls up to 5 wall coolers
+alias GasSensor d0
+
+define COOLER -739292323
+define HEATER 24258244
+define LED -815193061
+define DIAL 554524804
+
+alias setpoint r0
+alias current r1
+alias error r2
+alias bias r3
+alias kp r4
+alias pidout r5
+
+sbn DIAL HASH("Thermostat") Setting 68
+
+move setpoint 294.15 # setpoint temperature in Kelvin
+move kp 5
+move bias 0.0
+
+start:
+yield
+l current GasSensor Temperature
+
+move r10 current
+jal ConvertKToF
+sbn LED HASH("Led1") Setting r13
+
+lbn r10 DIAL HASH("Thermostat") Setting 3
+sbn LED HASH("Led2") Setting r10
+jal ConvertFToK
+move setpoint r13
+
+sub error setpoint current
+add error error bias
+mul pidout kp error # kp
+mul pidout pidout -1 # invert
+s db Setting pidout
+sbn LED HASH("PID") Setting pidout
+
+slt r9 4 pidout
+sbn COOLER HASH("Wall Cooler 5") On r9
+slt r9 3 pidout
+sbn COOLER HASH("Wall Cooler 4") On r9
+slt r9 2 pidout
+sbn COOLER HASH("Wall Cooler 3") On r9
+slt r9 1 pidout
+sbn COOLER HASH("Wall Cooler 2") On r9
+slt r9 0 pidout
+sbn COOLER HASH("Wall Cooler 1") On r9
+j start
+
+ConvertKToF:
+# F = K(9/5) - 459.67
+div r11 9 5
+mul r12 r10 r11
+sub r13 r12 459.67
+j ra
+
+ConvertFToK:
+# K = (F + 459.67) x 5/9
+div r11 5 9
+add r12 r10 459.67
+mul r13 r12 r11
+j ra
