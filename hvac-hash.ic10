@@ -2,7 +2,7 @@
 alias gasSensor d0
 
 define COOLER -739292323
-#define HEATER 24258244
+define HEATER 24258244
 define LED -815193061
 define DIAL 554524804
 
