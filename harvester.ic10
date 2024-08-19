@@ -1,9 +1,27 @@
-push HASH("D0")
-push 0
 push HASH("D1")
 push 1
 push HASH("D2")
 push 2
+push HASH("D3")
+push 3
+push HASH("D4")
+push 4
+push HASH("D5")
+push 5
+push HASH("D6")
+push 6
+push HASH("D7")
+push 7
+push HASH("D8")
+push 8
+push HASH("D11")
+push 11
+push HASH("D12")
+push 12
+push HASH("D13")
+push 13
+push HASH("D14")
+push 14
 
 alias dArm d0
 
@@ -19,16 +37,27 @@ alias rTemp2 r7
 alias rTemp3 r8
 
 define trayHash HASH("StructureHydroponicsTrayData")
-define pickupIndex 4
-define pickupFertilizerIndex 5
-define dropIndex 3
+define binHash HASH("StructureChuteBin")
+define hash HASH("StructureAdvancedComposter")
+
+define pickupIndex 10
+define pickupFertilizerIndex 0
+define dropIndex 9
 define stackStart 0
-define stackEnd 5
+define stackEnd 23
 
 add sp stackStart 1
 add rStackEnd stackEnd 2
 
 loop:
+lbs r9 binHash 0 Occupied 0
+breq r9 0 2
+sb binHash Open 0
+
+lb r9 hash Quantity 0
+brlt r9 5 2
+sb hash Activate 1
+
 peek rNameHash
 add sp sp 1
 peek rTargetIndex
@@ -77,19 +106,3 @@ yield
 l rArmIdle dArm Idle
 breq rArmIdle 0 -2
 j ra
-#-------------------------------------------------
-#define binHash HASH("StructureChuteBin")
-#loop:
-#yield
-#lbs r0 binHash 0 Occupied 0
-#breq r0 0 2
-#sb binHash Open 0
-#j loop
-#--------------------------------------------------
-#define hash HASH("StructureAdvancedComposter")
-#loop:
-#yield
-#lb r0 hash Quantity 0
-#brlt r0 5 2
-#sb hash Activate 1
-#j loop
