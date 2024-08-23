@@ -1,0 +1,91 @@
+alias dHelmet d0
+alias dSuit db
+alias dBackpack d1
+
+alias rHelmetOpen r0
+alias rActive r1
+alias rHostileEnvironment r2
+alias rRatioPollutant r3
+alias rRatioVolatiles r4
+alias rRatioNitrousOxide r5
+alias rRatioOxygen r6
+alias rTemperature r7
+alias rAlert r8
+
+
+
+define maxTempExternal 49
+define minTempExternal 1
+define MAXPRES 125
+define MINPRES 80
+define MAXTOXIN 0.45
+define MAXNO2 4.5
+define CTOK 273.15
+
+start:
+#Load Device Parameters
+l rHelmetOpen dHelmet Open
+l rHostileEnvironment dSuit PressureExternal
+l rRatioPollutant dSuit RatioPollutant
+l rRatioVolatiles dSuit RatioVolatiles
+l rRatioNitrousOxide dSuit RatioNitrousOxide
+l rRatioOxygen dSuit RatioOxygen
+l rTemperature dSuit TemperatureExternal
+sub rTemperature rTemperature 273.15
+
+#CalculateValues:
+ble rHostileEnvironment 45 preslow
+bge rHostileEnvironment 125 preshigh
+bge rRatioPollutant 0.01 hazarddetected
+bge rRatioVolatiles 0.01 hazarddetected
+bge rRatioNitrousOxide 4.5 hazarddetected
+ble rRatioOxygen 0.2 hazarddetected
+ble rTemperature minTempExternal templow
+bge rTemperature maxTempExternal temphigh
+beq rHelmetOpen 0 manual
+beq rHelmetOpen 1 open
+j start
+
+lock:
+s dSuit On 1
+s dSuit Filtration 1
+s dSuit AirRelease 1
+s dHelmet Open 0
+s dHelmet Lock 1
+j start
+
+open:
+s dSuit On 0
+s dSuit Filtration 0
+s dSuit AirRelease 0
+s dHelmet Lock 0
+s dHelmet SoundAlert 20
+j start
+
+manual:
+s dSuit On 1
+s dSuit Filtration 1
+s dSuit AirRelease 1
+s dHelmet Lock 0
+s dHelmet SoundAlert 21
+j start
+
+preshigh:
+s dHelmet SoundAlert 39
+j lock
+
+preslow:
+s dHelmet SoundAlert 40
+j lock
+
+templow:
+s dHelmet SoundAlert 42
+j lock
+
+temphigh:
+s dHelmet SoundAlert 41
+j lock
+
+hazarddetected:
+s dHelmet SoundAlert 43
+j lock

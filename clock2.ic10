@@ -1,0 +1,83 @@
+# Devices
+alias SSens d0 # Daylight Sensor
+
+define GROWLIGHT -1758710260
+define CLOCK -53151617
+
+# Settings
+define HOffset 8 # Hours Offset
+#Colors: 0=Blue, 1=Grey, 2=Green, 3=Orange, 4=Red, 5= Gold, 6=White,
+#Colors: 7=Dark Grey, 8=Dark Red, 9=Yellow, 10=Magenta, 11=Purple
+define CDay 5 # Day color (Gold)
+define CNight 11 # Night color (Purple)
+# Variables
+alias cTime r1 # Calculated time
+alias hour r2 # Hour component
+alias min r3 # Minute component
+alias cAngle r4 # Current solar angle
+alias pAngle r5 # Previous solar angle
+alias dColor r6 # Display color
+alias mStep r7 # Minutes per step
+alias maxAngle r8 # Maximum solar angle
+
+ICInit:
+mul maxAngle HOffset 2 # Calculate max angle based on offset
+sub maxAngle 180 maxAngle # Adjust max angle
+div mStep maxAngle 720 # Calculate minutes per step
+sb GROWLIGHT On 0
+Main:
+l pAngle SSens SolarAngle # Load previous solar angle
+sub pAngle pAngle HOffset # Adjust for offset
+sleep 0.01 # Short delay
+l cAngle SSens SolarAngle # Load current solar angle
+sub cAngle cAngle HOffset # Adjust for offset
+div cTime cAngle mStep # Calculate time from angle
+bgt pAngle cAngle AM # If previous > current, go to AM
+blt pAngle cAngle PM # If previous < current, go to PM
+
+AM:
+sub cTime 720 cTime # Adjust time for AM
+move dColor CDay # Set day color
+j CheckGrow # Jump to check grow light timer
+
+PM:
+add cTime 720 cTime # Adjust time for PM
+move dColor CNight # Set day color
+j CheckGrow  # Jump to check grow light timer
+
+CheckGrow:
+bge cTime 360 cTimeOn  # If time >= 6am (360 minutes)
+ble cTime 720 cTimeOn  # If time <= 2pm (720 minutes)
+j cTimeOff  # If not between 6am and 2pm, jump to cTimeOff
+
+cTimeOn:
+sb GROWLIGHT On 1  # Turn on grow light
+j Calc # Jump to calculation
+
+cTimeOff:
+sb GROWLIGHT On 0  # Turn off grow light
+j Calc # Jump to calculation
+
+Calc:
+div cTime cTime 60 # Convert minutes to hours
+trunc hour cTime # Get integer part of hours
+sub min cTime hour # Calculate remaining minutes
+mod hour hour 12 # Convert to 12-hour format
+beqz hour SetTo12 # If hour is 0, set it to 12
+j FormatMinutes
+
+SetTo12:
+move hour 12 # Set hour to 12 if it was 0
+
+FormatMinutes:
+mul min min 100 # Adjust minutes for display format
+mul min min 60 # Convert to seconds
+div min min 100 # Adjust back to minutes
+trunc min min # Get integer part of minutes
+div min min 100 # Final adjustment for display
+add cTime hour min # Combine hours and minutes
+
+Display:
+sb CLOCK Setting cTime
+sb CLOCK Color dColor
+j Main # Jump back to main
