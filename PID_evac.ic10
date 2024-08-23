@@ -1,0 +1,64 @@
+# Controls Evaporation Chamber to Control Heating and Cooling
+alias PipeAnal d0
+alias Evap d1
+alias LED d2
+alias LED2 d3
+
+
+alias current r0
+alias error r1
+alias bias r2
+alias pidout r3
+alias currentTemp r4
+alias integral r5
+alias lastError r6
+alias derivative r7
+
+define hysteresis 0.02
+
+define setpoint 298.15 #25C
+define midpoint 3636.3 # Center point for Evac Setting ~25C
+
+define Kp 5
+define Ki 0.01
+define Kd 0.005
+
+move bias 0.0 # Adjust this if the setpoint is off
+
+#Set these to 0 at start otherwise its buggy
+move integral 0.0
+move derivative 0.0
+
+start:
+yield
+l currentTemp PipeAnal Temperature #Read Temp From sensor
+
+# PID calculations
+sub error setpoint currentTemp
+add integral integral error
+sub derivative error lastError
+
+# Calculate PID output
+#pidout = (Kp * error) + (Ki * integral) + (Kd * derivative) + bias
+mul r10 error Kp # P term
+mul r11 integral Ki # I term
+mul r12 derivative Kd # D term
+add pidout r10 r11
+add pidout pidout r12
+add pidout pidout bias
+
+# Scale PID output to 0-6000 range centered at 3600
+mul r14 pidout 14.97 # Amplify the effect
+add r13 midpoint r14 # Center around midpoint
+
+## 20C = 3569.9,  25C = 3636.3,  30C = 3719.6
+max r13 r13 0 # Ensure non-negative
+min r13 r13 6000 # Clamp to 0-6000 range
+
+s Evap Setting r13
+s LED Setting currentTemp
+s LED2 Setting r13
+s db Setting pidout
+
+move lastError error
+j start
