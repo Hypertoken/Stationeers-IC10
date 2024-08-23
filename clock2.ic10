@@ -1,6 +1,8 @@
 # Devices
 alias SSens d0 # Daylight Sensor
+alias WeatherStation d1
 
+define WARNING -1535893860
 define GROWLIGHT -1758710260
 define CLOCK -53151617
 
@@ -10,6 +12,8 @@ define HOffset 8 # Hours Offset
 #Colors: 7=Dark Grey, 8=Dark Red, 9=Yellow, 10=Magenta, 11=Purple
 define CDay 5 # Day color (Gold)
 define CNight 11 # Night color (Purple)
+define cStorm 10 # Upcoming Storm color magenta
+
 # Variables
 alias cTime r1 # Calculated time
 alias hour r2 # Hour component
@@ -19,12 +23,16 @@ alias pAngle r5 # Previous solar angle
 alias dColor r6 # Display color
 alias mStep r7 # Minutes per step
 alias maxAngle r8 # Maximum solar angle
+alias WeatherMode r9
+alias Weathertime r10
+alias Warn r11
 
 ICInit:
 mul maxAngle HOffset 2 # Calculate max angle based on offset
 sub maxAngle 180 maxAngle # Adjust max angle
 div mStep maxAngle 720 # Calculate minutes per step
 sb GROWLIGHT On 0
+
 Main:
 l pAngle SSens SolarAngle # Load previous solar angle
 sub pAngle pAngle HOffset # Adjust for offset
@@ -76,6 +84,18 @@ div min min 100 # Adjust back to minutes
 trunc min min # Get integer part of minutes
 div min min 100 # Final adjustment for display
 add cTime hour min # Combine hours and minutes
+
+#Check the WeatherStation - Warning Light and Clock Color
+Weather:
+l WeatherMode WeatherStation Mode # Load Current Weather status
+l Weathertime WeatherStation NextWeatherEventTime # Load next weather event
+trunc Weathertime Weathertime # Get integer part of Weathertime
+seq Warn WeatherMode 1 # Set Warning if weather event upcoming
+s Warning On Warn # Enable/Disable Warning Light
+bne WeatherMode 1 Display # Skip back to main loop if no weather event
+sb CLOCK Setting Weathertime
+sb CLOCK Color cStorm
+j Main # Jump back to main
 
 Display:
 sb CLOCK Setting cTime

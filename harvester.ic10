@@ -43,7 +43,7 @@ alias error r10
 
 define trayHash HASH("StructureHydroponicsTrayData")
 define binHash HASH("StructureChuteBin")
-define hash HASH("StructureAdvancedComposter")
+define compHash HASH("StructureAdvancedComposter")
 
 define pickupIndex 10
 define pickupFertilizerIndex 0
@@ -66,9 +66,9 @@ lbs r13 binHash 0 Occupied 0
 breq r13 0 2
 sb binHash Open 0
 
-lb r13 hash Quantity 0
+lb r13 compHash Quantity 0
 brlt r13 5 2
-sb hash Activate 1
+sb compHash Activate 1
 
 peek rNameHash
 add sp sp 1
