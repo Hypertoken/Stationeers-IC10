@@ -91,7 +91,7 @@ l WeatherMode WeatherStation Mode # Load Current Weather status
 l Weathertime WeatherStation NextWeatherEventTime # Load next weather event
 trunc Weathertime Weathertime # Get integer part of Weathertime
 seq Warn WeatherMode 1 # Set Warning if weather event upcoming
-s Warning On Warn # Enable/Disable Warning Light
+sb WARNING On Warn # Enable/Disable Warning Light
 bne WeatherMode 1 Display # Skip back to main loop if no weather event
 sb CLOCK Setting Weathertime
 sb CLOCK Color cStorm
