@@ -24,6 +24,8 @@ push HASH("D14")
 push 14
 
 alias dArm d0
+alias gasSensor d1
+alias Led1 d2
 
 alias rNameHash r0
 alias rTargetIndex r1
@@ -36,27 +38,37 @@ alias rTemp1 r6
 alias rTemp2 r7
 alias rTemp3 r8
 
+alias currentTemp r9
+alias error r10
+
 define trayHash HASH("StructureHydroponicsTrayData")
 define binHash HASH("StructureChuteBin")
-define hash HASH("StructureAdvancedComposter")
+define compHash HASH("StructureAdvancedComposter")
 
 define pickupIndex 10
 define pickupFertilizerIndex 0
 define dropIndex 9
 define stackStart 0
 define stackEnd 23
+define setpoint 303.15
 
 add sp stackStart 1
 add rStackEnd stackEnd 2
 
 loop:
-lbs r9 binHash 0 Occupied 0
-breq r9 0 2
+l currentTemp gasSensor Temperature
+sub r15 currentTemp setpoint
+s db Setting r15
+sub r14 currentTemp 273.15
+s Led1 Setting r14
+
+lbs r13 binHash 0 Occupied 0
+breq r13 0 2
 sb binHash Open 0
 
-lb r9 hash Quantity 0
-brlt r9 5 2
-sb hash Activate 1
+lb r13 compHash Quantity 0
+brlt r13 5 2
+sb compHash Activate 1
 
 peek rNameHash
 add sp sp 1

@@ -15,7 +15,7 @@ alias integral r7
 alias lastError r8
 alias derivative r9
 
-define hysteresis 0.2
+define hysteresis 0.5
 define Ki 0.01
 define Kd 0.05
 
@@ -27,9 +27,7 @@ move derivative 0.0
 
 #INITIAL DEVICE STATES
 s wallHeater On 0
-s wallHeater Lock 1
 s wallCooler On 0
-s wallCooler Lock 1
 s Led1 Mode 0
 s Led1 Color 2
 

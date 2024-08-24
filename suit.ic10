@@ -1,0 +1,123 @@
+define MINO2PP 25
+define MAXTEMP 50
+define MINTEMP 10
+define MAXPRES 125
+define MINPRES 80
+define MAXTOXIN 0.45
+define MAXNO2 4.5
+define CTOK 273.15
+
+alias Suit db
+alias Helmet d0
+alias Jetpack d1
+
+alias pressure r0
+alias helmetopen r1
+alias helmetclosed r2
+alias stayclosed r3
+alias temperature r4
+alias lastopen r5 # expected helmet
+alias pp r6
+alias extreme r7
+alias alert r8
+alias lastalert r9
+alias temp1 r14
+alias temp2 r15
+move lastalert 0
+s Helmet Volume 50
+l lastopen Helmet Open
+loop:
+l helmetopen Helmet Open
+seq helmetclosed helmetopen 0
+jal miser
+jal checkhazard
+sne temp1 lastopen helmetopen
+and temp2 temp1 helmetclosed
+bgtzal temp2 manuallyclosed
+and temp2 temp1 helmetopen
+bgtzal temp2 manuallyopened
+s Suit Setting temp2
+beq helmetclosed 1 checkopen
+beq helmetopen 1 checkclose
+done:
+alert:
+beqz alert skipalert
+beq alert lastalert skipalert
+s Helmet SoundAlert alert
+move lastalert alert
+skipalert:
+yield
+j loop
+miser:
+l pressure Suit Pressure
+l temp1 Suit RatioOxygen
+mul pp temp1 pressure
+slt temp1 pp MINO2PP
+s Suit Filtration temp1
+s Suit AirRelease helmetclosed
+s Suit On helmetclosed
+j ra
+manuallyopened:
+move alert 20
+move lastopen 1
+move stayclosed 0
+j ra
+manuallyclosed:
+move alert 21
+move lastopen 0
+move stayclosed 1
+j ra
+checkopen:
+beq stayclosed 1 done
+beq extreme 1 done
+move alert 20
+s Helmet Open 1
+move lastopen 1
+j done
+checkclose:
+beq extreme 1 autoclose
+beq stayclosed 1 autoclose
+j done
+checkhazard:
+l temp1 Suit RatioPollutant
+l temp2 Suit RatioVolatiles
+add temp1 temp1 temp2
+mul pp temp1 pressure
+bge pp MAXTOXIN hazarddetected
+l temp1 Suit RatioNitrousOxide
+mul pp temp1 pressure
+bge pp MAXNO2 hazarddetected
+l pressure Suit PressureExternal
+bge pressure MAXPRES preshigh
+ble pressure MINPRES preslow
+l temperature Suit TemperatureExternal
+add temp1 MAXTEMP CTOK
+bge temperature temp1 temphigh
+add temp1 MINTEMP CTOK
+ble temperature temp1 templow
+move extreme 0
+j ra
+preshigh:
+move alert 39
+j extremeenv
+preslow:
+move alert 40
+j extremeenv
+templow:
+move alert 42
+j extremeenv
+temphigh:
+move alert 41
+j extremeenv
+extremeenv:
+move extreme 1
+j ra
+hazarddetected:
+move alert 43
+move stayclosed 1
+j ra
+autoclose:
+s Helmet Open 0
+move alert 21
+move lastopen 0
+j done

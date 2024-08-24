@@ -1,0 +1,125 @@
+alias Cryopod d0 # Salacious CryoChamber V0.1
+alias ExteriorDoor d1
+alias AtmoVent d2
+alias NitrogenVent d3
+alias OCCsensor d4
+alias InteriorGasAn d5
+alias TubeOccupied r10
+alias PlayerDead r11
+alias PlayerWasDead r9
+lbn r15 HASH("StructureConsoleLED5") HASH("CryoDebug") ReferenceId Maximum
+alias SpoofOCC r14
+lbn r14 HASH("StructureLogicSwitch") HASH("SpoofOccupancy") ReferenceId Maximum
+alias SpoofDead r13
+lbn r13 HASH("StructureLogicSwitch") HASH("SpoofDead") ReferenceId Maximum
+alias EmergencyLever r12
+lbn r12 HASH("StructureLogicSwitch") HASH("EmergencyLever") ReferenceId Maximum
+lbn r8 HASH("StructureConsoleLED5") HASH("DispPressure") ReferenceId Maximum
+lbn r7 HASH("StructureConsoleLED5") HASH("DispTemp") ReferenceId Maximum
+lbn r6 HASH("StructureDiode") HASH("StatusLED") ReferenceId Maximum
+s Cryopod Open 1
+s ExteriorDoor Open 1
+s ExteriorDoor Setting 1
+s AtmoVent On 0
+s AtmoVent Lock 0
+s NitrogenVent On 0
+s NitrogenVent Lock 0
+WaitForCryoOccupant:
+yield
+l r0 Cryopod EntityState
+sne r0 r0 -1 # EntityState is -1 when not occupied
+ld r1 SpoofOCC Open
+or TubeOccupied r0 r1 # Check for Spoof Occupancy Lever Override or Occupancy
+ld r1 SpoofDead Open
+seq r0 r0 EntityState.Dead
+or PlayerDead r0 r1 # Check for Spoof Dead Lever Override or DeadPlayer
+s db Setting PlayerDead
+move PlayerWasDead PlayerDead # Set Player Dead Flag
+sd r6 Color Color.Green
+beq TubeOccupied 0 WaitForCryoOccupant # Loop until Player Enters Cryopod
+s Cryopod On 1
+CheckForTeamateExit:
+yield
+l r0 OCCsensor Quantity
+sgt r0 r0 1 # NOTE: may need to be one for two people
+and r0 PlayerDead r0
+bnez r0 CheckForTeamateExit # When Deadplayer Detected, Loop until Teamate has left
+CloseExteriorDoor:
+s ExteriorDoor Setting 0
+s ExteriorDoor Open 0
+s Cryopod Open 1 # ReOpen Cryopod to Allow Room Atmo to Pressurize it
+DePressurizeAtmo:
+yield
+yield
+s NitrogenVent On 0
+s AtmoVent Mode 1
+s AtmoVent On 1
+l r0 Cryopod Pressure
+jal UpdateDisplays
+sd r6 Color Color.Brown
+bgtz r0 DePressurizeAtmo # Loop until Vacuum
+s AtmoVent On 0
+beq PlayerDead 0 PressurizeAtmo # Skip Nitrogen Pressurize if Player is not dead
+PressurizeNitrogen:
+yield
+yield
+s AtmoVent On 0
+s NitrogenVent Mode 0
+s NitrogenVent On 1
+s NitrogenVent PressureExternal 90
+l r0 InteriorGasAn Pressure
+jal UpdateDisplays
+sd r6 Color Color.Blue
+ld r1 EmergencyLever Open
+brnez r1 2
+blt r0 86 PressurizeNitrogen # Loop until Pressurized with Nitrogen
+s NitrogenVent On 0
+j WaitForPlayerExitCryo
+PressurizeAtmo:
+yield
+yield
+s NitrogenVent On 0
+s AtmoVent Mode 0
+s AtmoVent On 1
+l r0 InteriorGasAn Pressure
+jal UpdateDisplays
+sd r6 Color Color.Brown
+blt r0 95 PressurizeAtmo # Loop until Pressurized with Hab atmo
+s AtmoVent On 0
+WaitForPlayerExitCryo:
+yield
+l r0 Cryopod EntityState
+ld r1 SpoofOCC Open
+sne r0 r0 -1 # EntityState is -1 when not occupied
+or TubeOccupied r0 r1 # Check for Spoof Occupancy Lever Override
+ld r0 EmergencyLever Open
+sd r6 Color Color.Red
+brnez r0 2
+beq TubeOccupied 1 WaitForPlayerExitCryo # Loop until player has exited the Cryopod
+beq PlayerWasDead 0 OpenExteriorDoor # Skip Nitrogen Depressurize if Player not Dead
+DePressurizeNitrogen:
+yield
+yield
+s AtmoVent On 0
+s NitrogenVent Mode 1D
+s NitrogenVent On 1
+l r0 Cryopod Pressure
+jal UpdateDisplays
+sd r6 Color Color.Blue
+bgtz r0 DePressurizeNitrogen # Loop until Vacuum
+s NitrogenVent On 0
+move PlayerWasDead 0 # Reset Player Dead Flag
+j PressurizeAtmo
+OpenExteriorDoor:
+s ExteriorDoor Open 1
+s ExteriorDoor Setting 1
+move PlayerWasDead 0
+s Cryopod On 0
+j WaitForCryoOccupant
+UpdateDisplays:
+l r3 InteriorGasAn Pressure
+sd r8 Setting r3
+l r4 InteriorGasAn Temperature
+sub r4 r4 273.15 #Convert to Kelvin
+sd r7 Setting r4
+j ra
