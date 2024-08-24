@@ -74,7 +74,6 @@ peek rNameHash
 add sp sp 1
 peek rTargetIndex
 add sp sp 1
-s LED Setting rTargetIndex
 brle sp rStackEnd 3
 move sp 1
 j loop
