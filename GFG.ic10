@@ -1,109 +1,81 @@
-#PID IC
+alias gGenerator d0
 
-alias Kp d0 #Memory
-alias Ki d1 #Memory
-alias Kd d2 #Memory
+define aVent -1129453144
+define gSens -1252983604
+define fMixer 2104106366
+define led -815193061
+define tank 272136332
+define memory -851746783
+define gasAna 435685051
 
-alias FeedbackDevice d3 #
-alias SetPointDevice d4
+alias press r0
+alias temp r1
+alias power r2
 
-alias currVal r0
-alias setVal r1
-alias error r2
-alias lastError r3
-alias integral r4
-alias derivate r5
-alias command r6
+sbn aVent  HASH("Out Vent") Mode 1
+sbn aVent  HASH("Out Vent") PressureInternal 46000
+sbn aVent  HASH("Out Vent") PressureExternal 46000
+sbn aVent HASH("In Vent") Mode 0
+sbn aVent HASH("In Vent") PressureExternal 46000
+sbn aVent HASH("In Vent") PressureInternal 46000
+sbn aVent HASH("Atmo Active Vent") Mode 1
+sb led Mode 2
 
-alias kp_factor r7
-alias ki_factor r8
-alias kd_factor r9
+start:
+jal handleAtmo
+jal handleFMix
+jal getData
+jal handlePressure
+jal handleTemp
+jal startEngine
+j start
 
-alias tor_step r10
-alias tor_max r11
-alias stopCommand r12
-alias tempvalue r13
+handlePressure:
+lbn press gSens HASH("gfg Gas Sensor") Pressure 0
+sgt r15 press 100
+sbn aVent HASH("Out Vent") On r15
+sle r15 press 30
+sbn aVent HASH("In Vent") On r15
+sbn memory HASH("PMemory") Setting press
+j ra
 
+handleTemp:
+lbn temp gSens HASH("gfg Gas Sensor") Temperature 0
+sgt r14 temp 278.15
+sbn aVent HASH("Out Vent") On r14
+sub r14 temp 273.15
+sbn memory HASH("TMemory") Setting r14
+j ra
 
-define ReactionSign 1
+handleAtmo:
+lbn temp gSens HASH("Atmo Gas Sensor") Temperature 0
+sle r13 temp 243.15
+sbn aVent HASH("Atmo Active Vent") On r13
+lb r13 gasAna Volume 0
+lb r14 gasAna VolumeOfLiquid 0
+div r15 r14 r13 # Calculate Pipe Stress
+mul r15 r15 5000 # VolumeOfLiquid / Volume * 5000 = Stress %
+bgt r15 100 start
+lbn press tank HASH("Atmo Tank") Pressure 0
+ble press 1200 start
+j ra
 
-move lastError 0
-move integral 0
+handleFMix:
+lbn press tank HASH("Fuel Tank") Pressure 0
+sb fMixer Setting 66.66
+sle r12 press 20000
+sb fMixer On r12
+sgt r12 press 100
+j ra
 
-main:
-yield
+getData:
+l power gGenerator PowerGeneration
+sb led Setting power
+j ra
 
-#read data
-l currVal FeedbackDevice Stress
-l setVal SetPointDevice Setting
-
-l kp_factor Kp Setting
-l ki_factor Ki Setting
-l kd_factor Kd Setting
-
-#Stop command
-sgtz stopCommand setVal
-sub stopCommand 1 stopCommand
-
-#Calculate error
-sub error setVal currVal
-s db Setting error
-
-#Calculate Integral
-mul tempvalue error 0.5
-add integral integral tempvalue
-
-#Calculate Derivative
-sub derivate error lastError
-div derivate derivate 0.5
-move lastError error
-
-#Calculated Result Command
-mul command error kp_factor
-mul tempvalue integral ki_factor
-add command command tempvalue
-mul tempvalue derivate kd_factor
-add command command tempvalue
-mul command command ReactionSign
-
-#reset integral
-brnez ki_factor 2
-move integral 0
-
-#s db Setting command
-
-#Direct command
-add command setVal command
-
-#Limit throttle below 150 rpm
-l tempvalue FeedbackDevice Rpm
-brgt tempvalue 150 2
-#min command command 20 #Limit to 20%
-
-#Stop throttle when trying to stop
-brnez stopCommand 4
-s FeedbackDevice Throttle command
-s FeedbackDevice On 1
-jr 4
-s FeedbackDevice Throttle 0
-s FeedbackDevice On 0
-move integral 0
-
-#Limiter regulation
-brnez stopCommand 4
-sub command command 10
-s FeedbackDevice CombustionLimiter command
-jr 2
-s FeedbackDevice CombustionLimiter 0
-
-#Open when stopped
-l tempvalue FeedbackDevice Rpm
-seqz tempvalue tempvalue
-s FeedbackDevice Open tempvalue
-
-j main
-
-#Command = 30
-#Kp = 0.15
-#Ki = 0.05
-#Kd = 40
+startEngine:
+add r11 r12 r14
+add r11 r11 r15
+seq r11 r11 3
+s gGenerator On r11
+j ra
