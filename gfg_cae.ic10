@@ -1,0 +1,42 @@
+#Regulate temperature for a room with
+#a gas fuel generator
+
+alias insidesensor d0
+alias vent1 d1
+alias vent2 d2
+alias outsidesensor d3
+alias pump d4
+alias tank d5
+
+alias pressure r5
+
+define SETPOINT 293  #20C
+#increase RESPONSE if too hot
+#decrease RESPONSE if up and down
+define RESPONSE 9
+
+start:
+yield
+#activate intakes
+l r0 outsidesensor Temperature
+slt r0 r0 230
+l r1 tank Pressure
+slt r1 r1 20000
+and r0 r0 r1
+sb -1129453144 On r0
+#check generator
+l pressure insidesensor Pressure
+sgt r0 pressure 50
+s vent1 On r0
+sgt r0 pressure 100
+s vent2 On r0
+l r0 insidesensor Temperature
+sub r0 r0 SETPOINT
+l r1 tank Pressure
+div r0 r0 r1
+l r1 tank Temperature
+mul r0 r0 r1
+mul r0 r0 RESPONSE
+s pump Setting r0
+s db Setting r0
+j start

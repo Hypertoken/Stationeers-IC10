@@ -1,0 +1,128 @@
+alias GasAn d0  # Gas Analyzer
+alias CoolingVent d1  # Cooling Vent
+alias ExhaustVent d2  # Exhaust Vent
+alias Regulator d3  # Regulator
+alias GasEngine1 d4  # Gas Engine 1
+alias GasEngine2 d5  # Gas Engine 2
+define Counter 509  # Counter variable
+define CoolStartTick 508  # Cooling start tick
+define maxPressure 201  # Maximum pressure
+define targetTemp 290.15  # Target temperature
+define maxTemp 500.15  # Maximum temperature
+define tempMargin 5  # Temperature margin
+lbn r15 HASH("StructureConsoleLED1x3") HASH("Gas Engine Display") ReferenceId Maximum  # Display gas engine status
+lbn r14 HASH("StructureLogicSwitch2") HASH("GasGen PowerB") ReferenceId Maximum  # Display power status
+lbn r3 HASH("StructureFlashingLight") HASH("Oh Shit Light") ReferenceId Maximum  # Display alarm status
+lbn r2 HASH("StructureBattery") HASH("GasGen Batt") ReferenceId Maximum  # Display battery status
+s CoolingVent Mode 0  # Close cooling vent
+s ExhaustVent Mode 1  # Open exhaust vent
+s CoolingVent PressureExternal 99999  # Set external pressure to max
+s ExhaustVent PressureInternal 99999  # Set internal pressure to max
+s Regulator Setting 0.1  # Set regulator setting to 0.1
+put db Counter 0  # Reset counter
+Main:
+  yield  # Wait for next cycle
+  ld r13 r14 Open  # Load power switch status
+  l r0 GasAn Temperature  # Load temperature
+  l r1 GasAn Pressure  # Load pressure
+  sd r3 On 0  # Turn off alarm light
+  get r5 db Counter  # Load counter value
+  beqz r15 Start  # Skip if device is not available
+  bgt r5 2 DisplayTemp  # Skip if display bit is not flipped
+  sd r15 Setting r1  # Display pressure
+  sd r15 Color Color.Green  # Set display color to green
+  j Start  # Jump to start
+DisplayTemp:
+  bgt r5 4 Start  # Skip if display bit is not flipped
+  sub r4 r0 273.15  # Convert temperature to Kelvin
+  sd r15 Setting r4  # Display temperature
+  sd r15 Color Color.Blue  # Set display color to blue
+  j Start  # Jump to start
+Start:
+  jal CounterCheck  # Call counter check subroutine
+  bgt r0 maxTemp Emergency  # Check for overheating
+  bnez r13 Emergency  # Check for power switch status
+  ld r6 r2 Mode  # Load battery mode
+  blt r6 6 50  # Check battery mode
+  s GasEngine1 On 0  # Turn off gas engine 1
+  s GasEngine2 On 0  # Turn off gas engine 2
+  s Regulator On 0  # Turn off regulator
+  j 53  # Jump to next instruction
+  s GasEngine1 On 1  # Turn on gas engine 1
+  s GasEngine2 On 1  # Turn on gas engine 2
+  s Regulator On 1  # Turn on regulator
+  jal CheckTemp  # Call temperature check subroutine
+  jal CheckPressure  # Call pressure check subroutine
+  get r4 db Counter  # Load counter value
+  j Main  # Jump to main loop
+CounterCheck:
+  get r4 db Counter  # Load counter value
+  blt r4 6 60  # Check counter value
+  put db Counter 0  # Reset counter
+  beq r4 6 ra  # Check counter value
+  add r4 r4 1  # Increment counter
+  put db Counter r4  # Store counter value
+  j ra  # Return
+CheckTemp:
+  push ra  # Save return address
+  sub r4 targetTemp tempMargin  # Calculate lower temperature bound
+  add r5 targetTemp tempMargin  # Calculate upper temperature bound
+  bltal r0 r4 IncreasePower  # Check if temperature is below lower bound
+  sgt r8 r0 r5  # Check if temperature is above upper bound
+  get r9 db CoolStartTick  # Load cooling start tick
+  get r12 db Counter  # Load counter value
+  seq r10 r9 r12  # Check if cooling start tick matches counter
+  and r11 r8 r10  # Check if temperature is out of bounds and cooling hasn't started
+  bnezal r11 DecreasePower  # Decrease power if temperature is too high
+  bnezal r8 Cool  # Start cooling if temperature is too high
+  pop ra  # Restore return address
+  j ra  # Returne
+IncreasePower:
+  push ra  # Save return address
+  l r6 Regulator Setting  # Load regulator setting
+  add r6 r6 0.05  # Increase regulator setting
+  s Regulator Setting r6  # Store regulator setting
+  s CoolingVent On 0  # Turn off cooling vent
+  pop ra  # Restore return address
+  j ra  # Return
+DecreasePower:
+  push ra  # Save return address
+  put db CoolStartTick -1  # Reset cooling start tick
+  l r6 Regulator Setting  # Load regulator setting
+  sub r6 r6 1  # Decrease regulator setting
+  s Regulator Setting r6  # Store regulator setting
+  s CoolingVent On 0  # Turn off cooling vent
+  pop ra  # Restore return address
+  add ra ra 1  # Increment return address
+  j ra  # Return
+Cool:
+  push ra  # Save return address
+  s ExhaustVent On 1  # Turn on exhaust vent
+  s CoolingVent On 1  # Turn on cooling vent
+  get r7 db CoolStartTick  # Load cooling start tick
+  put db CoolStartTick r7  # Store cooling start tick
+  pop ra  # Restore return address
+  j ra  # Return
+CheckPressure:
+  push ra  # Save return address
+  sub r4 maxPressure 1  # Calculate lower pressure bound
+  add r5 maxPressure 1  # Calculate upper pressure bound
+  bltal r1 r4 Intake  # Check if pressure is below lower bound
+  bgtal r1 r5 Exhaust  # Check if pressure is above upper bound
+  pop ra  # Restore return address
+  j ra  # Return
+Exhaust:
+  s ExhaustVent On 1  # Turn on exhaust vent
+  j ra  # Return
+Intake:
+  s ExhaustVent On 0  # Turn off exhaust vent
+  j ra  # Return
+Emergency:
+  s GasEngine1 On 0  # Turn off gas engine 1
+  s GasEngine2 On 0  # Turn off gas engine 2
+  sd r3 On 1  # Turn on alarm light
+  sd r14 Open 1  # Open power switch
+  s Regulator On 0  # Turn off regulator
+  s CoolingVent On 1  # Turn on cooling vent
+  s ExhaustVent On 1  # Turn on exhaust vent
+  j Main  # Jump to main loop
