@@ -5,7 +5,6 @@ define gSens -1252983604
 define fMixer 2104106366
 define led -815193061
 define tank 272136332
-define memory -851746783
 define Analyzer 435685051
 define pump -321403609
 define switch -1321250424
@@ -24,16 +23,18 @@ define maxtemp 323.15
 sbn aVent HASH("Out Vent") On 1
 sbn aVent HASH("In Vent") On 1
 sbn aVent HASH("Out Vent") Mode 1 # Set Vent to In (out of room, "IN" to pipe.)
-sbn aVent HASH("Out Vent") PressureInternal 99999 # Pressure Inside Pipe
-sbn aVent HASH("Out Vent") PressureExternal 30 # Pressure Inside Room
+sbn aVent HASH("Out Vent") PressureInternal 99999
+sbn aVent HASH("Out Vent") PressureExternal 30
 sbn aVent HASH("In Vent") Mode 0 # Set Vent to Out (in to room, "OUT" of pipe.)
-sbn aVent HASH("In Vent") PressureExternal 99999 # Pressure Inside Room
-sbn aVent HASH("In Vent") PressureInternal 0 # Pressure Inside Pipe
-sbn aVent HASH("Atmo Active Vent") Mode 1 # Set Atmo vents to In
-sb led Mode 2 # Set led to Power mode
+sbn aVent HASH("In Vent") PressureExternal 99999
+sbn aVent HASH("In Vent") PressureInternal 0
+sb led Mode 2
 
 start:
 yield
+lb r9 switch Activate 0
+beqz r9 stop
+jal getBattInfo
 jal handleAtmo
 jal handleFMix
 jal getPowerData
@@ -43,16 +44,16 @@ jal startEngine
 j start
 
 handlePressure:
-lbn press gSens HASH("gfg Gas Sensor") Pressure 0 # Get Pressure Inside
-sgt r15 press minpress # Check if Pressure is above 20kPa
-beqz r15 blipGen # Blip the Generator until over 20kPa
-sle r14 press maxpress # Check if Pressure is below 190kPa
+lbn press gSens HASH("gfg Gas Sensor") Pressure 0
+sgt r15 press minpress #
+beqz r15 blipGen
+sle r14 press maxpress
 j ra
 
 handleTemp:
 lbn temp gSens HASH("gfg Gas Sensor") Temperature 0 # Get Temperature Inside
 sub r14 temp 273.15 # Convert Kelvin to Celcius
-sbn memory HASH("TMemory") Setting r14 # Store in Memory for graph
+sbn -851746783 HASH("TMemory") Setting r14 # Store in Memory for graph
 add r13 mintemp 10 # Add 10c to minimum
 sgt r14 temp r13 # Check if temp is 10c over minimum
 sbn aVent HASH("In Vent") On r14 # If not turn off the intake vent.
@@ -68,12 +69,15 @@ div r15 r14 r13 # Calculate Pipe Stress
 mul r15 r15 5000 # VolumeOfLiquid / Volume * 5000 = Stress %
 slt r15 r15 90 # Check if over 90% stress
 lbn temp gSens HASH("Atmo Gas Sensor") Temperature 0 # Get Outside Temp
-slt r13 temp 273.15 # Check if its under 0C
+slt r13 temp 293.15 # Check if its under 20C
 lbn press tank HASH("Atmo Tank") Pressure 0 # Get Atmo Tank Pressure
 slt r12 press 25000 # Check if its under 25mPA
 and r12 r12 r13 # If Pressure and Temp are good/bad,
 and r12 r12 r15 # And if Stress is good/bad,
+sbn aVent HASH("Atmo Active Vent") Mode 1 # Set Atmo vents to In
 sbn aVent HASH("Atmo Active Vent") On r12 # Turn on/off the Atmo Vents
+sgt r12 press 25000
+sbn aVent HASH("In Vent") On r12 # Turn on/off the Atmo Vents
 j ra
 
 handleFMix:
@@ -92,8 +96,20 @@ getPowerData:
 l power gGenerator PowerGeneration # Get the ammount of power being generated
 sb led Setting power
 sub r10 power lastpower
-sbn memory HASH("PMemory") Setting r10 # Store in Memory for graph.
+sbn -851746783 HASH("PMemory") Setting r10 # Store in Memory for graph.
 move lastpower power
+j ra
+
+getBattInfo:
+lb r9 -400115994 Charge Average
+div r9 r9 3600001
+lb r10 -1388288459 Charge Average
+div r10 r10 9000001
+add r11 r9 r10 # Get Average of
+div r11 r11 2 # both sets of Batteries
+s db Setting r11
+brle r11 0.80 2
+j stop
 j ra
 
 startEngine:
@@ -103,10 +119,10 @@ and r11 r11 r10 # If all 4 are true/false
 lb r9 switch Activate 0
 breqz r9 2
 s gGenerator On r15 # Turn on/off the Generator.
-s db Setting r13
 j ra
-
 blipGen:
-lb r9 switch Activate 0
-s gGenerator On r9
+s gGenerator On 1
+j start
+stop:
+s gGenerator On 0
 j start
