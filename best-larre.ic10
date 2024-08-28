@@ -1,0 +1,121 @@
+alias larre d0
+alias seedBin d1
+alias fertBin d2
+alias outBin d3
+define growLight HASH("StructureGrowLight")
+define compHash HASH("StructureAdvancedComposter")
+define seedBinMark HASH("Seed")
+define fertBinMark HASH("Fert")
+define outBinMark HASH("Out")
+push HASH("D1") #push corresponding device names onto stack starting from junction 0
+push HASH("D2") #YOU MUST ALSO push the three 3 Mark vals above somewhere on the stack
+push HASH("D3")
+push HASH("D4")
+push HASH("D5")
+push HASH("D6")
+push HASH("D7")
+push HASH("D8")
+push HASH("D9")
+push HASH("D10")
+push HASH("D11")
+push HASH("D12")
+push HASH("D13")
+push HASH("D14")
+push HASH("D15")
+push HASH("D16")
+push seedBinMark
+push outBinMark
+push fertBinMark
+define minutesOfLight 5 #define these to the optimal values for your plants.
+define minutesOfDark 3.33
+define potID HASH("StructureHydroponicsTrayData")
+alias stackSize r15
+alias pot r14
+alias seedPos r13
+alias fertPos r12
+alias outPos r11
+alias timer r10
+alias offTime r9
+alias totalTime r8
+mul offTime minutesOfLight 120 #calculate growlight cycle tick values
+floor offTime offTime
+mul totalTime minutesOfDark 120
+floor totalTime totalTime
+add totalTime totalTime offTime
+move stackSize sp
+pop r0 #iterate through stack once to compute bin junction positions
+brne r0 seedBinMark 2
+move seedPos sp
+brne r0 fertBinMark 2
+move fertPos sp
+brne r0 outBinMark 2
+move outPos sp
+brgtz sp -7
+l timer db Setting #get housing timer value to prevent light stress during modifications
+mul timer timer 120
+floor timer timer
+IterateStackDevices:
+move sp stackSize #start iterating through all the devices on the stack
+CheckNextDevice:
+pop pot
+beq pot seedBinMark CheckNextDevice
+beq pot fertBinMark CheckNextDevice
+beq pot outBinMark CheckNextDevice
+lbns r0 potID pot 0 Occupied Maximum
+bnez r0 SkipPlant #skip planting if slot occupied
+ls r0 seedBin 0 Occupied
+beqz r0 SkipPlant #skip planting if no seeds in bin
+s larre Setting seedPos #otherwise,
+jal SendLarreToTask #send larre to the seed bin,
+jal DoAtTray #then back to the tray
+SkipPlant:
+lbns r0 potID pot 1 Occupied Maximum
+bnez r0 CheckHarvestable #handle fertilizing like planting
+ls r0 fertBin 0 Occupied
+beqz r0 CheckHarvestable
+s larre Setting fertPos
+jal SendLarreToTask
+jal DoAtTray
+CheckHarvestable:
+lbns r0 potID pot 0 Seeding Minimum
+blez r0 Iterate #skip harvesting if plant not seeding
+ContinueHarvest:
+lbns r0 potID pot 0 Mature Minimum #keep harvesting while mature
+blez r0 Iterate #end harvest when no longer mature
+jal DoAtTray #otherwise, harvest tray,
+s larre Setting outPos #then go deposit in the export bin
+jal SendLarreToTask
+s outBin Open 0 #afterward, close bin to clear slot and export item
+j ContinueHarvest #then check again to see if there is more to harvest
+Iterate:
+bgtz sp CheckNextDevice #check next tray in stack when all is handled
+yield #wait, and then check all the trays again
+add timer timer 1
+jal HandleGrowlight #increment timer one and handle grow light
+jal HandleComposter
+sbn -815193061 HASH("LARRE DEBUG") Setting timer
+j IterateStackDevices
+DoAtTray:
+s larre Setting sp #stack pointer after getting tray is equal to junction index for
+SendLarreToTask:
+yield #wait for larre to make it to his destination before calling Activate
+add timer timer 1 #will handle growlight at the end of larre's do cycle
+l r0 larre Idle
+beqz r0 SendLarreToTask
+ActivateLarre:
+s larre Activate 1
+sleep 2 #wait for larre to grab/drop
+add timer timer 4
+HandleGrowlight:
+brle timer totalTime 2
+move timer 0
+div r0 timer 120
+s db Setting r0 #write the cycle time in minutes to the housing
+slt r0 timer offTime
+sb growLight On r0
+j ra
+HandleComposter:
+lb r13 compHash Quantity 0
+brlt r13 5 2
+sb compHash Activate 1
+j ra
