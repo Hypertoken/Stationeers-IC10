@@ -1,0 +1,79 @@
+alias gGenerator d0
+
+define aVent -1129453144
+define gSens -1252983604
+define led -815193061
+define switch -1321250424
+
+alias press r0
+alias temp r1
+alias power r2
+alias lastpower r3
+
+# Room Conditions
+define minpress 20
+define maxpress 190
+define mintemp 278.15
+define maxtemp 323.15
+
+sbn aVent HASH("Out Vent") On 1
+sbn aVent HASH("In Vent") On 1
+sbn aVent HASH("Out Vent") Mode 1 # Set Vent to In (out of room, "IN" to pipe.)
+sbn aVent HASH("Out Vent") PressureInternal 99999
+sbn aVent HASH("Out Vent") PressureExternal 30
+sbn aVent HASH("In Vent") Mode 0 # Set Vent to Out (in to room, "OUT" of pipe.)
+sbn aVent HASH("In Vent") PressureExternal 99999
+sbn aVent HASH("In Vent") PressureInternal 0
+sb led Mode 2
+
+start:
+yield
+lb r9 switch Activate 0
+beqz r9 stop
+jal getPowerData
+jal handlePressure
+jal handleTemp
+jal startEngine
+j start
+
+handlePressure:
+lbn press gSens HASH("gfg Gas Sensor") Pressure 0
+sgt r15 press minpress #
+beqz r15 blipGen
+sle r14 press maxpress
+j ra
+
+handleTemp:
+lbn temp gSens HASH("gfg Gas Sensor") Temperature 0 # Get Temperature Inside
+sub r14 temp 273.15 # Convert Kelvin to Celcius
+sbn -851746783 HASH("TMemory") Setting r14 # Store in Memory for graph
+add r13 mintemp 10 # Add 10c to minimum
+sgt r14 temp r13 # Check if temp is 10c over minimum
+sbn aVent HASH("In Vent") On r14 # If not turn off the intake vent.
+beqz r14 blipGen # Blip the Generator until over 5c
+j ra
+
+getPowerData:
+l power gGenerator PowerGeneration # Get the ammount of power being generated
+sb led Setting power
+sub r10 power lastpower
+sbn -851746783 HASH("PMemory") Setting r10 # Store in Memory for graph.
+move lastpower power
+j ra
+
+startEngine:
+and r11 r13 r14 # Check if temps in range 5C - 50C
+and r10 r15 r12 # Check if Pressure is above 20kPa, and FuelMix is above 100kPa
+and r11 r11 r10 # If all 4 are true/false
+lb r9 switch Activate 0
+breqz r9 2
+s gGenerator On r15 # Turn on/off the Generator.
+j ra
+
+blipGen:
+s gGenerator On 1
+j start
+
+stop:
+s gGenerator On 0
+j start
