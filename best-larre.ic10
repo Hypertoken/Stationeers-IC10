@@ -2,7 +2,8 @@ alias larre d0
 alias seedBin d1
 alias fertBin d2
 alias outBin d3
-define growLight HASH("StructureGrowLight")
+alias debug d4
+define growLight -1758710260
 define compHash HASH("StructureAdvancedComposter")
 define seedBinMark HASH("Seed")
 define fertBinMark HASH("Fert")
@@ -37,6 +38,7 @@ alias outPos r11
 alias timer r10
 alias offTime r9
 alias totalTime r8
+alias btime r7
 mul offTime minutesOfLight 120 #calculate growlight cycle tick values
 floor offTime offTime
 mul totalTime minutesOfDark 120
@@ -61,6 +63,8 @@ pop pot
 beq pot seedBinMark CheckNextDevice
 beq pot fertBinMark CheckNextDevice
 beq pot outBinMark CheckNextDevice
+lbns r0 potID pot 0 Health Maximum
+beqz r0 DeadPlant
 lbns r0 potID pot 0 Occupied Maximum
 bnez r0 SkipPlant #skip planting if slot occupied
 ls r0 seedBin 0 Occupied
@@ -92,8 +96,6 @@ bgtz sp CheckNextDevice #check next tray in stack when all is handled
 yield #wait, and then check all the trays again
 add timer timer 1
 jal HandleGrowlight #increment timer one and handle grow light
-jal HandleComposter
-sbn -815193061 HASH("LARRE DEBUG") Setting timer
 j IterateStackDevices
 DoAtTray:
 s larre Setting sp #stack pointer after getting tray is equal to junction index for
@@ -107,6 +109,7 @@ s larre Activate 1
 sleep 2 #wait for larre to grab/drop
 add timer timer 4
 HandleGrowlight:
+s debug Setting timer
 brle timer totalTime 2
 move timer 0
 div r0 timer 120
@@ -115,7 +118,9 @@ slt r0 timer offTime
 sb growLight On r0
 j ra
 HandleComposter:
-lb r13 compHash Quantity 0
-brlt r13 5 2
+lb r6 compHash Quantity 0
+brlt r6 5 2
 sb compHash Activate 1
 j ra
+DeadPlant:
+jal DoAtTray
