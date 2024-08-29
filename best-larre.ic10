@@ -64,7 +64,8 @@ beq pot seedBinMark CheckNextDevice
 beq pot fertBinMark CheckNextDevice
 beq pot outBinMark CheckNextDevice
 lbns r0 potID pot 0 Health Maximum
-beqz r0 DeadPlant
+brnez r0 2
+jal DoAtTray
 lbns r0 potID pot 0 Occupied Maximum
 bnez r0 SkipPlant #skip planting if slot occupied
 ls r0 seedBin 0 Occupied
@@ -116,11 +117,7 @@ div r0 timer 120
 s db Setting r0 #write the cycle time in minutes to the housing
 slt r0 timer offTime
 sb growLight On r0
-j ra
-HandleComposter:
 lb r6 compHash Quantity 0
 brlt r6 5 2
 sb compHash Activate 1
 j ra
-DeadPlant:
-jal DoAtTray

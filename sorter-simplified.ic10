@@ -13,7 +13,7 @@ ls r0 Sorter 0 SortingClass
 s db Setting r0
 beq r0 0 done
 
-beq r0 3 food
+beq r0 3 plant
 beq r0 4 seed
 
 plant:
