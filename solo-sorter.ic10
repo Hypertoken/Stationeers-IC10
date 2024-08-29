@@ -1,52 +1,46 @@
 alias Sorter d0
+alias PowerAnalyzer d5
+
 alias hash r1
+alias fooddir r2
+alias seeddir r3
+
+alias draw r4
+alias ppow r5
 
 init:
 # 0=left, 1=right
-move left 0
-move right 1
-
+move seeddir 0
+move fooddir 1
 s Sorter Mode 2
 s Sorter Output -1
 
 start:
+l draw PowerAnalyzer PowerActual
+sub r15 draw ppow
+move ppow draw
+s db Setting r15
+
 ls hash Sorter 0 OccupantHash
-s db Setting hash
 beq hash 0 done
+beq hash -1057658015 food # wheat
+beq hash -998592080 food # tomato
+beq hash 658916791 food # rice
+beq hash 1277828144 food # pumpkin
+beq hash -532672323 food # switchgrass
+beq hash 1924673028 food # soybean
+beq hash 1929046963 food # potatoe
+beq hash -1335056202 food # sugarcane
+beq hash 2044798572 food # mushroom
+beq hash 892110467 food # fern
+beq hash 258339687 food # corn
+beq hash 680051921 food # cocoa
 
-beq hash -1057658015 plant # wheat
-beq hash -998592080 plant # tomato
-beq hash 658916791 plant # rice
-beq hash 1277828144 plant # pumpkin
-beq hash -532672323 plant # switchgrass
-beq hash 1924673028 plant # soybean
-beq hash 1929046963 plant # potatoe
-beq hash -1335056202 plant # sugarcane
-beq hash 2044798572 plant # mushroom
-beq hash 892110467 plant # fern
-beq hash 258339687 plant # corn
-beq hash 680051921 plant # cocoa
-
-beq hash -1922066841 seed # wheat seeds
-beq hash -654756733 seed # tomato seeds
-beq hash -1691151239 seed # rice seeds
-beq hash 1423199840 seed # pumpkin seeds
-beq hash 488360169 seed # switchgrass seeds
-beq hash 1783004244 seed # soy seeds
-beq hash 1005571172 seed # potato seeds
-beq hash -1884103228 seed # sugarcane seeds
-beq hash 311593418 plant # mushroom seeds
-beq hash -1990600883 seed # fern seeds
-beq hash -1290755415 seed # corn seeds
-beq hash 1139887531 seed # cocoa seeds
-
-plant:
-s Sorter Output right
+s Sorter Output seeddir # not food
 j done
 
-seed:
-s Sorter Output left
-j done
+food:
+s Sorter Output fooddir
 
 done:
 yield
