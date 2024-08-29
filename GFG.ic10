@@ -1,12 +1,9 @@
 alias gGenerator d0
+alias InVent d1
+alias OutVent d2
 
-define aVent -1129453144
 define gSens -1252983604
-define fMixer 2104106366
 define led -815193061
-define tank 272136332
-define Analyzer 435685051
-define pump -321403609
 define switch -1321250424
 
 alias press r0
@@ -20,23 +17,19 @@ define maxpress 190
 define mintemp 278.15
 define maxtemp 323.15
 
-sbn aVent HASH("Out Vent") On 1
-sbn aVent HASH("In Vent") On 1
-sbn aVent HASH("Out Vent") Mode 1 # Set Vent to In (out of room, "IN" to pipe.)
-sbn aVent HASH("Out Vent") PressureInternal 99999
-sbn aVent HASH("Out Vent") PressureExternal 30
-sbn aVent HASH("In Vent") Mode 0 # Set Vent to Out (in to room, "OUT" of pipe.)
-sbn aVent HASH("In Vent") PressureExternal 99999
-sbn aVent HASH("In Vent") PressureInternal 0
+s OutVent On 1
+s OutVent Mode 1 # Set Vent to In (out of room, "IN" to pipe.)
+s OutVent PressureInternal 99999
+s OutVent PressureExternal 0
+s InVent On 1
+s InVent Mode 0 # Set Vent to Out (in to room, "OUT" of pipe.)
+s InVent PressureExternal 99999
+s InVent PressureInternal 0
+
 sb led Mode 2
 
 start:
 yield
-lb r9 switch Activate 0
-beqz r9 stop
-jal getBattInfo
-jal handleAtmo
-jal handleFMix
 jal getPowerData
 jal handlePressure
 jal handleTemp
@@ -54,42 +47,8 @@ handleTemp:
 lbn temp gSens HASH("gfg Gas Sensor") Temperature 0 # Get Temperature Inside
 sub r14 temp 273.15 # Convert Kelvin to Celcius
 sbn -851746783 HASH("TMemory") Setting r14 # Store in Memory for graph
-add r13 mintemp 10 # Add 10c to minimum
-sgt r14 temp r13 # Check if temp is 10c over minimum
-sbn aVent HASH("In Vent") On r14 # If not turn off the intake vent.
-beqz r14 blipGen # Blip the Generator until over 5c
-sgt r13 temp maxtemp # Check if temp is over 50C
-sb pump On r13 # Activate Pump if so.
-j ra
-
-handleAtmo:
-lbn r13 Analyzer HASH("Atmo Analyzer") Volume 0# Get Total Volume
-lbn r14 Analyzer HASH("Atmo Analyzer") VolumeOfLiquid 0# Get Total Liquid Volume
-div r15 r14 r13 # Calculate Pipe Stress
-mul r15 r15 5000 # VolumeOfLiquid / Volume * 5000 = Stress %
-slt r15 r15 90 # Check if over 90% stress
-lbn temp gSens HASH("Atmo Gas Sensor") Temperature 0 # Get Outside Temp
-slt r13 temp 293.15 # Check if its under 20C
-lbn press tank HASH("Atmo Tank") Pressure 0 # Get Atmo Tank Pressure
-slt r12 press 25000 # Check if its under 25mPA
-and r12 r12 r13 # If Pressure and Temp are good/bad,
-and r12 r12 r15 # And if Stress is good/bad,
-sbn aVent HASH("Atmo Active Vent") Mode 1 # Set Atmo vents to In
-sbn aVent HASH("Atmo Active Vent") On r12 # Turn on/off the Atmo Vents
-sgt r12 press 25000
-sbn aVent HASH("In Vent") On r12 # Turn on/off the Atmo Vents
-j ra
-
-handleFMix:
-lbn r13 Analyzer HASH("Fuel Analyzer") Volume 0# Get Total Volume
-lbn r14 Analyzer HASH("Fuel Analyzer") VolumeOfLiquid 0# Get Total Liquid Volume
-div r15 r14 r13 # Calculate Pipe Stress
-mul r15 r15 5000 # VolumeOfLiquid / Volume * 5000 = Stress %
-slt r15 r15 90 # Check if over 90% stress
-sb fMixer On r15 # Turn mixer on if so.
-sb fMixer Setting 66.66 # Set Mixer Ratio (H2/O2 = 66.66, N2O/H2 = 50)
-lbn press Analyzer HASH("Fuel Analyzer") Pressure 0# Get Total Volume
-sgt r12 press 100 # Check if Fuel Tank Pressure is over 100kPa
+slt r14 temp maxtemp # Check if temp is over maximum.
+s db Setting r14
 j ra
 
 getPowerData:
@@ -100,29 +59,18 @@ sbn -851746783 HASH("PMemory") Setting r10 # Store in Memory for graph.
 move lastpower power
 j ra
 
-getBattInfo:
-lb r9 -400115994 Charge Average
-div r9 r9 3600001
-lb r10 -1388288459 Charge Average
-div r10 r10 9000001
-add r11 r9 r10 # Get Average of
-div r11 r11 2 # both sets of Batteries
-s db Setting r11
-brle r11 0.80 2
-j stop
-j ra
-
 startEngine:
-and r11 r13 r14 # Check if temps in range 5C - 50C
-and r10 r15 r12 # Check if Pressure is above 20kPa, and FuelMix is above 100kPa
-and r11 r11 r10 # If all 4 are true/false
 lb r9 switch Activate 0
 breqz r9 2
-s gGenerator On r15 # Turn on/off the Generator.
+s gGenerator On r14 # Turn on/off the Generator.
 j ra
+
 blipGen:
+lb r9 switch Activate 0
+breqz r9 2
 s gGenerator On 1
 j start
+
 stop:
 s gGenerator On 0
 j start
