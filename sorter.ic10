@@ -1,80 +1,29 @@
-alias sorter d0
+alias Sorter d0
 
-define GETSEEDS 0 # -1(No) 0(Yes)
-define USEPOOP 0 # 0(No) 1(Yes)
+init:
+# 0=left, 1=right
+define left 0
+define right 1
 
-define harvieHASH 958056199
-define hydroponicsHASH -1841632400
-
-alias hash r1
-alias harvie r8
-alias hydroponics r9
-
-s sorter Mode 2
-s sorter Output -1
+s Sorter Mode 2
+s Sorter Output -1
 
 start:
-yield
+ls r0 Sorter 0 SortingClass
+s db Setting r0
+beq r0 0 done
 
-ls hash sorter 0 OccupantHash
-s db Setting hash
-beq hash 0 sorted
-beq hash 2044798572 food
-s sorter Output 1
-j sorted
-
-food:
-s sorter Output 0
-
-sorted:
-move r8 HASH("Harvie1")
-move r9 HASH("Hydroponics1")
-jal checkdevice
-move r8 HASH("Harvie2")
-move r9 HASH("Hydroponics2")
-jal checkdevice
-move r8 HASH("Harvie3")
-move r9 HASH("Hydroponics3")
-jal checkdevice
-move r8 HASH("Harvie4")
-move r9 HASH("Hydroponics4")
-jal checkdevice
-move r8 HASH("Harvie5")
-move r9 HASH("Hydroponics5")
-jal checkdevice
-move r8 HASH("Harvie6")
-move r9 HASH("Hydroponics6")
-jal checkdevice
-move r8 HASH("Harvie7")
-move r9 HASH("Hydroponics7")
-jal checkdevice
-move r8 HASH("Harvie8")
-move r9 HASH("Hydroponics8")
-jal checkdevice
-j start
-
-checkdevice:
-lbn r0 harvieHASH harvie Activate 0
-bnez r0 ra
-lbns r0 hydroponicsHASH hydroponics 0 Mature 0
-beq r0 -1 plant
-bne r0 1 ra
-lbns r0 hydroponicsHASH hydroponics 0 Seeding 0
-blt r0 GETSEEDS ra
-sbn harvieHASH harvie Harvest 1
-j ra
+beq r0 3 food
+beq r0 4 seed
 
 plant:
-lbns r0 harvieHASH harvie 0 Quantity 0
-beqz r0 ra
-l r0 db Setting
-beqz r0 ra
-lbns r0 hydroponicsHASH hydroponics 1 Quantity 0
-blt r0 USEPOOP ra
-lbn r0 hydroponicsHASH hydroponics Pressure 0
-beqz r0 ra
-lbn r0 hydroponicsHASH hydroponics Temperature 0
-blt r0 278 ra
-bgt r0 323 ra
-sbn harvieHASH harvie Plant 1
-j ra
+s Sorter Output right
+j done
+
+seed:
+s Sorter Output left
+j done
+
+done:
+yield
+j start

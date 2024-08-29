@@ -1,0 +1,60 @@
+alias sorter d0
+move sp 128 # the code is max 128 lines
+jal resetchip # sometimes rewriting/removing doesn't
+move sp 0   # reset it properly
+
+jal food
+
+s sorter Mode 2
+l r9 sorter Mode
+s db Setting r9
+
+loop:
+yield
+ls r0 sorter 0 Occupied
+beqz r0 loop
+move sp 1
+ls r0 sorter 0 OccupantHash
+s db Setting r0
+
+checkloop:
+peek r1
+add sp sp 1
+beq r1 r0 foundit
+bnez r1 checkloop
+move sp 1
+s sorter Output 0
+
+next:
+j loop
+
+foundit:
+# matched - output
+s sorter Output 1
+j loop
+
+resetchip:
+beqz sp ra
+push 0
+sub sp sp 2
+j resetchip
+j ra
+
+food:
+push -1922066841 # wheat seeds
+push -654756733  # tomato seeds
+push 1783004244  # soy seeds
+push -1691151239 # rice seeds
+push 1423199840  # pumpkin seeds
+push 1005571172  # potato seeds
+push -1290755415 # corn seeds
+push -1990600883 # fern seeds
+push -1057658015 # wheat
+push -998592080  # tomato
+push 1924673028  # soybean
+push 658916791   # rice
+push 1277828144  # pumpkin
+push 1929046963  # potato
+push 258339687   # corn
+j ra
+

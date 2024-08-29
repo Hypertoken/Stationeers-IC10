@@ -1,0 +1,50 @@
+    alias Sorter d0
+    alias PowerAnalyzer d5
+
+    s d4 Mode 2
+    s d4 Setting r1
+    s d5 Mode 0
+    s d5 Setting r4
+
+
+    alias draw r4
+    alias ppow r5
+
+    init:
+    # 0=left, 1=right
+    define left 0
+    define right 1
+
+    s Sorter Mode 2
+    s Sorter Output -1
+
+    start:
+    l draw PowerAnalyzer PowerActual
+    l rpow PowerAnalyzer PowerRequired #Read cable analyzer
+    l ppow PowerAnalyzer PowerPotential #Read cable analyzer
+
+    mul r3 rpow 2 #Power required per 1 second
+    div r4 ppow r3 #Power reserve in seconds
+    div r4 r4 60 #Power reserve in minutes
+    round r4 r4 #Rounding minutes to nice number
+
+    s db Setting draw
+
+
+    ls r0 Sorter 0 SortingClass
+    beq r0 0 done
+
+    beq r0 3 plant
+    beq r0 4 seed
+
+    plant:
+    s Sorter Output right
+    j done
+
+    seed:
+    s Sorter Output left
+    j done
+
+    done:
+    yield
+    j start

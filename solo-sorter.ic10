@@ -1,0 +1,47 @@
+alias Sorter d0
+alias PowerAnalyzer d5
+
+alias hash r1
+alias fooddir r2
+alias seeddir r3
+
+alias draw r4
+alias ppow r5
+
+init:
+# 0=left, 1=right
+move seeddir 0
+move fooddir 1
+s Sorter Mode 2
+s Sorter Output -1
+
+start:
+l draw PowerAnalyzer PowerActual
+sub r15 draw ppow
+move ppow draw
+s db Setting r15
+
+ls hash Sorter 0 OccupantHash
+beq hash 0 done
+beq hash -1057658015 food # wheat
+beq hash -998592080 food # tomato
+beq hash 658916791 food # rice
+beq hash 1277828144 food # pumpkin
+beq hash -532672323 food # switchgrass
+beq hash 1924673028 food # soybean
+beq hash 1929046963 food # potatoe
+beq hash -1335056202 food # sugarcane
+beq hash 2044798572 food # mushroom
+beq hash 892110467 food # fern
+beq hash 258339687 food # corn
+beq hash 680051921 food # cocoa
+
+s Sorter Output seeddir # not food
+j done
+
+food:
+s Sorter Output fooddir
+
+done:
+yield
+j start
