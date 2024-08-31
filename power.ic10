@@ -1,23 +1,14 @@
-alias Sorter d0
 alias pAnal d1
 alias Led d2
 
 alias min r1
 alias sec r2
 
-
 alias rpow r5
 alias ppow r6
 
 init:
-# 0=left, 1=right
-define left 0
-define right 1
-
 s Led Mode 0
-
-s Sorter Mode 2
-s Sorter Output -1
 
 start:
 yield
@@ -39,19 +30,4 @@ add r15 min sec
 s db Setting rpow
 s Led Setting r15
 
-ls r0 Sorter 0 OccupantHash
-beq r0 1924673028 toPlanter # soybeans
-beq r0 1531087544 toCompost # spooiled food
-
-ls r0 Sorter 0 SortingClass
-beq r0 0 start
-beq r0 3 toCompost # Plants - To composter
-beq r0 4 toPlanter # Seeds - To replant
-
-toPlanter:
-s Sorter Output left
-j start
-
-toCompost:
-s Sorter Output right
 j start

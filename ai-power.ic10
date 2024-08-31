@@ -1,0 +1,83 @@
+alias Sorter d0
+alias pAnal d1
+alias Led d2
+
+alias min r1
+alias sec r2
+
+alias rpow r3
+alias ppow r4
+alias totalTime r5
+
+# Additional registers to store the last 5 seconds of data
+alias time1 r6
+alias time2 r7
+alias time3 r8
+alias time4 r9
+alias time5 r10
+alias timeSum r11
+
+init:
+# 0=left, 1=right
+define left 0
+define right 1
+
+s Led Mode 0
+
+s Sorter Mode 2
+s Sorter Output -1
+
+start:
+yield
+
+# Shift previous time values to make room for the new one
+move time5 time4
+move time4 time3
+move time3 time2
+move time2 time1
+
+# Read current power values
+l rpow pAnal PowerRequired
+l ppow pAnal PowerPotential
+
+# Calculate remaining time in seconds
+mul r15 rpow 2
+div r14 ppow r15
+div time1 r14 60
+
+# Calculate the sum of the last 5 time values
+add timeSum time1 time2
+add timeSum timeSum time3
+add timeSum timeSum time4
+add timeSum timeSum time5
+
+# Average the sum of the last 5 time values
+div totalTime timeSum 5
+trunc min totalTime
+sub sec totalTime min
+mul sec sec 100
+mul sec sec 60
+div sec sec 100
+trunc sec sec
+div sec sec 100
+add totalTime min sec
+
+# Display the averaged time on the LED
+s Led Setting totalTime
+
+ls r0 Sorter 0 OccupantHash
+beq r0 1924673028 toPlanter # soybeans
+beq r0 1531087544 toCompost # spooiled food
+
+ls r0 Sorter 0 SortingClass
+beq r0 0 start
+beq r0 3 toCompost # Plants - To composter
+beq r0 4 toPlanter # Seeds - To replant
+
+toPlanter:
+s Sorter Output left
+j start
+
+toCompost:
+s Sorter Output right
+j start
