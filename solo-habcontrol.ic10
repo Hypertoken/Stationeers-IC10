@@ -1,0 +1,104 @@
+# Controls 1 wall cooler and 1 heater with PID
+alias gasSensor d0
+alias wallHeater d1
+alias wallCooler d2
+alias Led1 d3 # Current Temp
+alias OutVent d4 #
+alias Thermostat d5 # Temp Adjust
+
+alias setpoint r0
+alias current r1
+alias error r2
+alias bias r3
+alias Kp r4
+alias pidout r5
+alias currentTemp r6
+alias integral r7
+alias lastError r8
+alias derivative r9
+
+define hysteresis 0.2
+
+move Kp 5
+define Ki 0.01
+define Kd 0.05
+
+move bias 0
+move integral 0.0
+move derivative 0.0
+
+#INITIAL DEVICE STATES
+s OutVent PressureExternal 101
+s OutVent PressureInternal 99999
+s wallHeater On 0
+s wallHeater Lock 1
+s wallCooler On 0
+s wallCooler Lock 1
+s Led1 Mode 0
+
+l r15 db Setting 
+brnez r15 2
+s Thermostat Setting 86 # 30C "Good for plants"
+s Thermostat Setting r15
+
+start:
+yield
+l currentTemp gasSensor Temperature #Read Temp From sensor
+
+# Convert Kelvin to F and populate the LED Display
+move r13 currentTemp
+jal ConvertKToF
+s Led1 Setting r13
+
+# Read the Dial and Convert from K to F
+l r13 Dial Setting
+jal ConvertFToK
+move setpoint r13
+
+# PID calculations
+sub error setpoint currentTemp
+add integral integral error
+sub derivative error lastError
+
+# Calculate PID output
+#pidout = (Kp * error) + (Ki * integral) + (Kd * derivative) + bias
+mul r10 error Kp # P term
+mul r11 integral Ki # I term
+mul r12 derivative Kd # D term
+add pidout r10 r11
+add pidout pidout r12
+add pidout pidout bias
+
+# Cooler logic (turns on when pidout is negative)
+mul r10 hysteresis -1
+slt r11 pidout r10
+s wallCooler On r11
+
+# New cooler power setting logic
+mul r12 pidout -1 # Invert PID output for cooling
+max r12 r12 0 # Ensure non-negative
+min r12 r12 100 # Clamp to 0-100 range
+s wallCooler Setting r12
+
+# Heater logic (turns on when pidout is positive)
+sgt r13 pidout hysteresis
+s wallHeater On r13
+mul r14 error -1
+move lastError error
+j start
+
+ConvertKToF:
+# F = K(9/5) - 459.67
+div r14 9 5
+mul r13 r13 r14
+sub r13 r13 459.67
+
+j ra
+
+ConvertFToK:
+# K = (F + 459.67) x 5/9
+div r14 5 9
+add r13 r13 459.67
+mul r13 r14 r13
+
+j ra
