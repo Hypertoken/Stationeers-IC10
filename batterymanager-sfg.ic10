@@ -1,0 +1,81 @@
+# Hypertokens - Battery Management
+alias led1 d0
+alias led2 d1
+alias led3 d2
+alias led4 d3
+
+# Hashed Devices
+define sfg 813146305
+define warning -1535893860
+define mirror 2096189278 # Logic Mirror
+define Batt -400115994 # Station Battery
+define LBatt -1388288459 # Large Station Battery
+define chute -850484480
+define Sbatt HASH("BattMirror")
+define MBatt HASH("LBattMirror")
+
+# Setup
+define minCharge 0.05 # Percent to start charging
+define maxCharge 0.8 # Percent to stop charging
+
+define numbatts 2 # How many Station Batteries
+define numlbatts 2 # How many Large Station Batteries
+
+# Variables
+alias totalcharge r15
+alias maxpot r14
+alias gencount r13
+alias pastcount r12
+alias chutecount r11
+alias prevcount r10
+alias totalcount r9
+
+# Init
+mul r0 numbatts 3600000 # Max potential of all Station Batteries
+mul r1 numlbatts 9000001 # Max potential of all Large Station Batteries
+add maxpot r0 r1  # Max potential of all Batteries
+#l prevcount db Setting
+move prevcount 0
+move pastcount 0
+move chutecount 0
+move totalcount 0
+move gencount 0
+start:
+yield
+
+getbattery:
+lbn r0 mirror Sbatt Charge 1 # Get the charge of a single Mirrored Battery
+lbn r1 mirror MBatt Setting 1 # Get the sum of all Mirrored Batteries
+lb r2 Batt Charge 1 # Get the sum of all directly wired Station Batteries
+lb r3 LBatt Charge 1 # Get the sum of all directly wired Large Station Batteries
+add r0 r0 r1
+add r1 r2 r3
+add totalcharge r0 r1 # Total Charge of mirrors
+div r0 totalcharge maxpot # Total Battery Percentage
+
+handlesfg:
+lbs r1 sfg 0 Occupied 1 # Is there fuel in the SFG
+seqz r1 r1 # If not...
+sb warning On r1 # Turn on/off the warning light
+lb r1 sfg On 0 # Is the SFG on
+select r1 r1 maxCharge minCharge # If SFG is on wait til max, otherwise wait til min
+sle r0 r0 r1 # If Battery % is less than min/max
+sb sfg On r0 # Turn on/off SFG
+
+lbs r0 chute 0 Occupied 1 # Is the chute occupied
+bnezal r0 countinput # If so Jump to handle it.
+lbs gencount sfg 0 Quantity 1 # Count how many are in the SFG
+brle gencount pastcount 2 # new stack logic
+sub chutecount chutecount gencount# subtract that amount from the import count
+add totalcount chutecount gencount# odd the gencount to chutecount w
+move pastcount gencount# store the previous gencount
+move prevcount chutecount# store the previous chutecount
+s led4 Setting totalcount# display the total amount
+j start
+
+# Handle Counting chute
+countinput:
+lbs r0 chute 0 Quantity 1 # Count how many were put in the chute system
+add chutecount prevcount r0 # Add that to the previous ammount
+sb chute Open 0 # Empty chute
+j ra
