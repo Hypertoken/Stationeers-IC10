@@ -1,0 +1,125 @@
+alias Cryopod d0 # Salacious CryoChamber V0.2
+alias ExteriorDoor d1
+alias AtmoVent d2
+alias NitrogenVent d3
+alias OCCsensor d4
+alias Speaker d5
+alias StatusLED r10
+lbn StatusLED HASH("StructureDiode") HASH("StatusLED") ReferenceId Maximum
+alias EmergencyLever r11
+define TargetCryoPressure 84
+define OriginalPressure 75
+s Cryopod Open 1
+s ExteriorDoor Mode 1
+s ExteriorDoor Open 1
+s ExteriorDoor Setting 1
+s AtmoVent On 0
+s AtmoVent Lock 0
+s NitrogenVent On 0
+s NitrogenVent Lock 0
+s Speaker On 1
+WaitForDeadCryoOccupant:
+yield
+jal IsEmergencyLeverDown
+brnez EmergencyLever -12
+s Speaker SoundAlert 0
+sb HASH("StructureConsoleLED5") On 0
+sd StatusLED Color Color.Green
+jal CheckDead # Returns r0=1 if Dead Occupant or Override Lever
+beqz r0 WaitForDeadCryoOccupant # Loop until Dead Player
+sd StatusLED Color Color.Orange
+s Speaker SoundAlert 3 # Quick Alarm to Alert Teamate to Leave
+CheckForTeamateExit:
+yield
+l r0 OCCsensor Quantity
+bgt r0 1 CheckForTeamateExit # Loop Until Teamate has Left the Chamber
+s ExteriorDoor Setting 0
+s ExteriorDoor Open 0 # CloseExteriorDoor
+sd StatusLED Color Color.Yellow
+s Speaker SoundAlert 20 # Depressurize
+move r0 1 # Set Vent to Inward Mode to DePressurize
+jal SetAtmoVentModeAndOn
+s AtmoVent PressureExternal 0
+DePressurizeAtmo:
+yield
+jal IsEmergencyLeverDown
+bnez EmergencyLever 94 # Abort DePressurize on Emergency Lever
+jal UpdateDisplays # Update Led Screens
+l r0 Cryopod Pressure
+bgt r0 1 DePressurizeAtmo# Loop until Vacuum inside Pod
+s AtmoVent On 0
+sd StatusLED Color Color.Blue
+s Speaker SoundAlert 21 # Pressurize
+move r0 0 # Set Vent to Outward Mode to Pressurize
+jal SetNitrogenVentModeAndOn
+PressurizeNitrogen:
+yield
+jal IsEmergencyLeverDown
+bnez EmergencyLever 72 # Abort Pressurize on Emergency Lever
+jal UpdateDisplays
+l r0 Cryopod Pressure
+blt r0 TargetCryoPressure PressurizeNitrogen # Loop until Pressurized with Nitrogen
+s NitrogenVent On 0
+sd StatusLED Color Color.Red
+s Speaker SoundAlert 6 # Play Alert Until Revived
+WaitForPlayerAlive:
+yield
+jal IsEmergencyLeverDown
+brnez EmergencyLever 4 # Abort Wait on Emergency Lever
+jal UpdateDisplays
+jal CheckDead
+bnez r0 WaitForPlayerAlive # Loop Until Player is Alive
+move r0 1 # Set Vent to Inward Mode to DePressurize
+jal SetNitrogenVentModeAndOn
+s NitrogenVent PressureExternal 0
+sd StatusLED Color Color.Blue
+s Speaker SoundAlert 20 # Depressurize
+DePressurizeNitrogen:
+yield
+jal UpdateDisplays
+l r0 Cryopod Pressure
+bgt r0 1 DePressurizeNitrogen # Loop until Vacuum
+s NitrogenVent On 0
+move r0 0 # Set Vent to Outward Mode to Pressurize
+jal SetAtmoVentModeAndOn
+sd StatusLED Color Color.Yellow
+s Speaker SoundAlert 21 # Pressurize
+PressurizeAtmo:
+yield
+jal IsEmergencyLeverDown
+bnez EmergencyLever 94 # Abort Pressurize on Emergency Lever
+jal UpdateDisplays
+l r0 Cryopod Pressure
+blt r0 OriginalPressure PressurizeAtmo # Loop until Pressurized with Hab atmo
+s AtmoVent On 0
+s ExteriorDoor Open 1
+s ExteriorDoor Setting 1 # OpenExteriorDoor
+j WaitForDeadCryoOccupant
+UpdateDisplays:
+sb HASH("StructureConsoleLED5") On 1
+l r0 Cryopod Pressure
+sbn HASH("StructureConsoleLED5") HASH("DispPressure") Setting r0
+l r0 Cryopod Temperature
+sub r0 r0 273.15 # Convert to Kelvin
+trunc r0 r0
+sbn HASH("StructureConsoleLED5") HASH("DispTemp") Setting r0
+j ra
+CheckDead:
+l r0 Cryopod EntityState
+seq r0 r0 EntityState.Dead
+lbn r1 HASH("StructureLogicSwitch") HASH("SpoofDead") Open Maximum
+or r0 r0 r1 # Check for Spoof Dead Lever Override or DeadPlayer
+j ra
+SetNitrogenVentModeAndOn:
+s NitrogenVent Mode r0
+s NitrogenVent On 1
+s NitrogenVent PressureExternal 99999 # Allow Max Flow
+j ra
+SetAtmoVentModeAndOn:
+s AtmoVent Mode r0
+s AtmoVent On 1
+s AtmoVent PressureExternal 99999 # Allow Max Flow
+j ra
+IsEmergencyLeverDown:
+lbn EmergencyLever HASH("StructureLogicSwitch") HASH("EmergencyLever") Open Maximum
+j ra

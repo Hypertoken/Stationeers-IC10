@@ -1,0 +1,11 @@
+alias ArcFurnace d0
+
+Main:
+yield
+ls r1 d0 0 Occupied
+beqz r1 Main
+s d0 Activate 1
+bnez r1 Main
+s d0 Activate 0
+s db Setting r1
+j Main

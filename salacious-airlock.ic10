@@ -1,0 +1,99 @@
+# Salacious Airlock V0.2
+alias interiorDoor d0
+alias exteriorDoor d1
+alias vent d2
+alias occSensor d3
+alias gasAn d4
+alias cancelButton d5
+
+define TARGETPRESSURE 75
+
+move r12 0
+lbn r14 HASH("StructureConsoleLED5") HASH("HAB AL Debug") ReferenceId Maximum
+lbn r15 HASH("StructureDiode") HASH("HAB Airlock Status") ReferenceId Maximum
+
+s exteriorDoor Mode 1 # Set Airlock Doors to Logic Mode
+s interiorDoor Mode 1
+l r0 exteriorDoor Open
+beqz r0 OpenInterior # Open interiorDoor if Exterior is Closed
+sd r15 On 1 # Turn Status Light On
+
+OpenExterior:
+s vent On 0
+s interiorDoor Open 0 # Close Interior Door
+s interiorDoor Setting 0 # Reset Interior Door Button State
+s exteriorDoor Open 1
+s exteriorDoor Setting 1
+ExteriorDoorWait: # Wait for a Request to Activate Airlock
+yield
+
+#l r0 occSensor Quantity
+#and r1 r0 r12
+#bnez r1 ExteriorDoorWait
+#move r12 0
+
+l r0 exteriorDoor Setting
+l r1 interiorDoor Setting
+sd r15 Color Color.Green # Set Status Light to Ready
+bne r0 r1 ExteriorDoorWait
+s exteriorDoor Open 0 # Close Exterior door if Open on Request
+s exteriorDoor Setting 0 # Reset Door Button States
+s interiorDoor Setting 0
+yield
+yield
+s vent Mode 0
+s vent On 1 # Turn Vent on to Pressurize
+yield
+s vent PressureExternal 99999 # Allow Max Flow
+Pressurize:
+yield
+l r0 cancelButton Activate
+bnez r0 OpenInterior # Cancel Pressurize if Cancel Button is used
+l r0 gasAn Pressure
+sd r15 Color Color.Red # Set Status Light to Busy
+sleep 0.5
+blt r0 TARGETPRESSURE Pressurize # Loop while Airlock Pressure is less than Target
+move r12 1 # Set Airlock Success Bool
+OpenInterior:
+s vent On 0
+s exteriorDoor Open 0
+s exteriorDoor Setting 0
+s interiorDoor Open 1
+s interiorDoor Setting 1
+InnerDoorWait: # Wait for a Request to Activate Airlock
+yield
+
+#l r0 occSensor Quantity
+#and r1 r0 r12
+#bnez r1 ExteriorDoorWait
+#move r12 0
+
+l r0 exteriorDoor Setting
+l r1 interiorDoor Setting
+sd r15 Color Color.Green # Set Status Light to Ready
+bne r0 r1 InnerDoorWait
+s interiorDoor Open 0
+s interiorDoor Setting 0
+s exteriorDoor Setting 0
+yield
+yield
+s vent Mode 1
+s vent On 1
+yield
+s vent PressureExternal 0
+Depressurize:
+yield
+l r0 cancelButton Activate
+bnez r0 OpenInterior # Cancel Depressurize if Cancel Button is used
+l r0 gasAn Pressure
+sd r15 Color Color.Red # Set Status Light to Busy
+brle r14 ninf 2
+sd r14 Setting r0
+sleep 1
+bgt r0 0 Depressurize # Loop while Airlock Pressure is Greater than 3kpa
+move r12 1 # Set Airlock Success Bool
+s vent On 0
+j OpenExterior
+
+#brle r14 ninf 2 #Debug
+#sd r14 Setting r12 #Debug

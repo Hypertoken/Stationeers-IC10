@@ -1,0 +1,97 @@
+#SETUP DEVICES
+alias O2Filter d0
+alias NFilter d1
+alias Analyzer d2
+alias HABSensor d3
+alias HABIntake d4
+alias HABOut d5
+
+#INITIAL DEVICE STATES
+s O2Filter On 0
+s NFilter On 0
+s HABIntake Mode 0
+s HABIntake On 1
+s HABIntake Lock 1
+s HABOut Mode 1
+s HABOut Lock 1
+s HABOut PressureInternal 46000
+
+#VARIABLES
+alias O2Anal r0
+alias N2Anal r1
+alias O2Sens r2
+alias N2Sens r3
+alias SensPress r4
+alias Depress r5
+
+#CONSTANTS
+define OMix 250
+define NMix 750
+
+#MAIN LOOP
+Main:
+yield # Wait 1 frame
+
+#READ SENSORS
+l O2Anal Analyzer RatioOxygen
+l N2Anal Analyzer RatioNitrogen
+l O2Sens HABSensor RatioOxygen
+l N2Sens HABSensor RatioNitrogen
+l SensPress HABSensor Pressure
+
+#CHECK O2 in lines
+mul O2Anal O2Anal 1000
+round r6 O2Anal
+bneal r6 OMix Filtrate
+beqal r6 OMix Foff
+
+#CHECK N2 in lines
+mul N2Anal N2Anal 1000
+round r7 N2Anal
+bneal r7 NMix Filtrate
+beqal r7 NMix Foff
+
+move Depress 0
+
+#CHECK O2 in HAB
+mul O2Sens O2Sens 1000
+round r8 O2Sens
+#sne r9 OMix r8
+sub r9 OMix r8
+abs r9 r9
+sgt r8 r9 50
+add Depress Depress r8
+
+#CHECK N2 in HAB
+mul N2Sens N2Sens 1000
+round r10 N2Sens
+#sne r11 NMix r10
+sub r11 NMix r10
+abs r11 r11
+sgt r10 r11 50
+add Depress Depress r10
+
+#CHECK HAB Pressure
+sgt r12 SensPress 101
+add Depress Depress r12
+
+#VENT HAB if any of the above 3 are true.
+sgt r13 Depress 0
+s HABOut On r13
+
+s db Setting Depress
+
+sleep 1
+j Main
+
+Filtrate:
+s O2Filter On 1
+s NFilter On 1
+
+j ra
+
+Foff:
+s O2Filter On 0
+s NFilter On 0
+
+j ra

@@ -1,128 +1,128 @@
-alias GasAn d0  # Gas Analyzer
-alias CoolingVent d1  # Cooling Vent
-alias ExhaustVent d2  # Exhaust Vent
-alias Regulator d3  # Regulator
-alias GasEngine1 d4  # Gas Engine 1
-alias GasEngine2 d5  # Gas Engine 2
-define Counter 509  # Counter variable
-define CoolStartTick 508  # Cooling start tick
-define maxPressure 201  # Maximum pressure
-define targetTemp 290.15  # Target temperature
-define maxTemp 500.15  # Maximum temperature
-define tempMargin 5  # Temperature margin
-lbn r15 HASH("StructureConsoleLED1x3") HASH("Gas Engine Display") ReferenceId Maximum  # Display gas engine status
-lbn r14 HASH("StructureLogicSwitch2") HASH("GasGen PowerB") ReferenceId Maximum  # Display power status
-lbn r3 HASH("StructureFlashingLight") HASH("Oh Shit Light") ReferenceId Maximum  # Display alarm status
-lbn r2 HASH("StructureBattery") HASH("GasGen Batt") ReferenceId Maximum  # Display battery status
-s CoolingVent Mode 0  # Close cooling vent
-s ExhaustVent Mode 1  # Open exhaust vent
-s CoolingVent PressureExternal 99999  # Set external pressure to max
-s ExhaustVent PressureInternal 99999  # Set internal pressure to max
-s Regulator Setting 0.1  # Set regulator setting to 0.1
-put db Counter 0  # Reset counter
+alias GasAn d0# Salacious Mars Gas Controller V0.2
+alias Vent d1
+alias CondensingTank d2
+alias LiquidTank d3
+alias WastePurge d4
+alias StirlingEngine d5
+alias WCooling r6
+alias WaterCond r7
+lbn r6 HASH("StructurePipeAnalysizer") HASH("CoolingPipeAntiBust") ReferenceId Maximum
+put db 510 r6
+lbn r6 HASH("StructureTurboVolumePump") HASH("WaterCondEvac") ReferenceId Maximum
+put db 511 r6
+lbn WCooling HASH("StructureTurboVolumePump") HASH("WaterCoolPump") ReferenceId Maximum
+lbn WaterCond HASH("StructureTankSmall") HASH("WaterCond") ReferenceId Maximum
+define MINTEMP 219.15 #-52c 219.15
+define MAXTEMP 243.15 #-30c 233.15
+define MAXCOOLANT 2700 # Maximum Amount of Liquid Coolant
+alias AmbientTemp r0
+alias LiquidCoolant r1
+alias LiquidCoolantTemp r2
+alias CondTankPressure r3
+alias CondTankCoolant r4
+alias CondTankTemp r5
+alias IdleState r15
 Main:
-  yield  # Wait for next cycle
-  ld r13 r14 Open  # Load power switch status
-  l r0 GasAn Temperature  # Load temperature
-  l r1 GasAn Pressure  # Load pressure
-  sd r3 On 0  # Turn off alarm light
-  get r5 db Counter  # Load counter value
-  beqz r15 Start  # Skip if device is not available
-  bgt r5 2 DisplayTemp  # Skip if display bit is not flipped
-  sd r15 Setting r1  # Display pressure
-  sd r15 Color Color.Green  # Set display color to green
-  j Start  # Jump to start
-DisplayTemp:
-  bgt r5 4 Start  # Skip if display bit is not flipped
-  sub r4 r0 273.15  # Convert temperature to Kelvin
-  sd r15 Setting r4  # Display temperature
-  sd r15 Color Color.Blue  # Set display color to blue
-  j Start  # Jump to start
-Start:
-  jal CounterCheck  # Call counter check subroutine
-  bgt r0 maxTemp Emergency  # Check for overheating
-  bnez r13 Emergency  # Check for power switch status
-  ld r6 r2 Mode  # Load battery mode
-  blt r6 6 50  # Check battery mode
-  s GasEngine1 On 0  # Turn off gas engine 1
-  s GasEngine2 On 0  # Turn off gas engine 2
-  s Regulator On 0  # Turn off regulator
-  j 53  # Jump to next instruction
-  s GasEngine1 On 1  # Turn on gas engine 1
-  s GasEngine2 On 1  # Turn on gas engine 2
-  s Regulator On 1  # Turn on regulator
-  jal CheckTemp  # Call temperature check subroutine
-  jal CheckPressure  # Call pressure check subroutine
-  get r4 db Counter  # Load counter value
-  j Main  # Jump to main loop
-CounterCheck:
-  get r4 db Counter  # Load counter value
-  blt r4 6 60  # Check counter value
-  put db Counter 0  # Reset counter
-  beq r4 6 ra  # Check counter value
-  add r4 r4 1  # Increment counter
-  put db Counter r4  # Store counter value
-  j ra  # Return
-CheckTemp:
-  push ra  # Save return address
-  sub r4 targetTemp tempMargin  # Calculate lower temperature bound
-  add r5 targetTemp tempMargin  # Calculate upper temperature bound
-  bltal r0 r4 IncreasePower  # Check if temperature is below lower bound
-  sgt r8 r0 r5  # Check if temperature is above upper bound
-  get r9 db CoolStartTick  # Load cooling start tick
-  get r12 db Counter  # Load counter value
-  seq r10 r9 r12  # Check if cooling start tick matches counter
-  and r11 r8 r10  # Check if temperature is out of bounds and cooling hasn't started
-  bnezal r11 DecreasePower  # Decrease power if temperature is too high
-  bnezal r8 Cool  # Start cooling if temperature is too high
-  pop ra  # Restore return address
-  j ra  # Returne
-IncreasePower:
-  push ra  # Save return address
-  l r6 Regulator Setting  # Load regulator setting
-  add r6 r6 0.05  # Increase regulator setting
-  s Regulator Setting r6  # Store regulator setting
-  s CoolingVent On 0  # Turn off cooling vent
-  pop ra  # Restore return address
-  j ra  # Return
-DecreasePower:
-  push ra  # Save return address
-  put db CoolStartTick -1  # Reset cooling start tick
-  l r6 Regulator Setting  # Load regulator setting
-  sub r6 r6 1  # Decrease regulator setting
-  s Regulator Setting r6  # Store regulator setting
-  s CoolingVent On 0  # Turn off cooling vent
-  pop ra  # Restore return address
-  add ra ra 1  # Increment return address
-  j ra  # Return
-Cool:
-  push ra  # Save return address
-  s ExhaustVent On 1  # Turn on exhaust vent
-  s CoolingVent On 1  # Turn on cooling vent
-  get r7 db CoolStartTick  # Load cooling start tick
-  put db CoolStartTick r7  # Store cooling start tick
-  pop ra  # Restore return address
-  j ra  # Return
-CheckPressure:
-  push ra  # Save return address
-  sub r4 maxPressure 1  # Calculate lower pressure bound
-  add r5 maxPressure 1  # Calculate upper pressure bound
-  bltal r1 r4 Intake  # Check if pressure is below lower bound
-  bgtal r1 r5 Exhaust  # Check if pressure is above upper bound
-  pop ra  # Restore return address
-  j ra  # Return
-Exhaust:
-  s ExhaustVent On 1  # Turn on exhaust vent
-  j ra  # Return
-Intake:
-  s ExhaustVent On 0  # Turn off exhaust vent
-  j ra  # Return
-Emergency:
-  s GasEngine1 On 0  # Turn off gas engine 1
-  s GasEngine2 On 0  # Turn off gas engine 2
-  sd r3 On 1  # Turn on alarm light
-  sd r14 Open 1  # Open power switch
-  s Regulator On 0  # Turn off regulator
-  s CoolingVent On 1  # Turn on cooling vent
-  s ExhaustVent On 1  # Turn on exhaust vent
-  j Main  # Jump to main loop
+yield
+l LiquidCoolant LiquidTank VolumeOfLiquid
+l CondTankCoolant CondensingTank VolumeOfLiquid
+l AmbientTemp GasAn Temperature
+slt r13 AmbientTemp MINTEMP
+sgt r14 AmbientTemp MAXTEMP
+or IdleState r13 r14 # Idle if Temp is Outside Range
+add r13 LiquidCoolant CondTankCoolant
+sgt r13 r13 MAXCOOLANT
+or IdleState IdleState r13 #Idle if Liquid Coolant is above Maximum
+l r11 CondensingTank TotalMoles
+l r14 CondensingTank RatioNitrogen
+mul r13 r11 r14 # Get Nitrogen Moles from Percentage
+l r14 CondensingTank RatioOxygen
+mul r14 r11 r14 # Get Oxygen Moles from Percentage
+sgt r13 r13 1000 # Purge when Oxygen is Above Trigger
+sgt r14 r14 1000 # Purge when Nitrogen is Above Trigger
+or r14 r13 r14
+and r12 r14 IdleState
+bnez r12 PurgeToWaste #Purge To Waist if Idle, Incidental Gas is Target and no Liquid
+ld r9 WaterCond TotalMoles
+ld r10 WaterCond RatioSteam
+mul r8 r9 r10 # Get Steam Moles from Percentage
+slt r8 r8 10 # Steam Moles required in tank to purge
+sgt r11 r11 2000 # Total Moles left to stop purging
+and r13 r11 IdleState #If Idle and Total Moles are Above 2000
+ld r11 WaterCond Temperature
+sgt r10 r11 470.15 # Polution Liquifies at 424k, Steam at 642k
+ld r9 WaterCond Pressure
+sgt r9 r9 10000 # Only Purge to Water when Water Cond Tank is below 44mpa
+slt r11 r11 453.15
+or r9 r11 r9
+and r9 r9 r8
+ld r8 WaterCond VolumeOfLiquid
+slt r8 r8 0.1
+and r9 r9 r8
+sub r8 1 IdleState
+and r9 r9 r8
+bnez r9 PurgeWaterCondTank # Break to Purging Water Cond tank if above 44mpa
+sub r11 1 r11
+and r11 r10 r11 # True if Water Cond Tank is not making Liquid Polutant
+and r13 r13 r10 # True if Idle and Previous IF
+bnez r13 PurgeToWater # Purge to Water Tank if Idle and CO2 is above 2000 moles
+l r13 CondensingTank Temperature
+l r12 CondensingTank Pressure
+sgt r12 r12 100# Purge to Atmo untill 100kpa
+sgt r13 r13 263.15 #-10c
+and r11 r11 r13
+and r11 r11 IdleState
+bnez r11 PurgeToWater # Also Purge to Water if Idle and Cond Tank Temp is too low -
+and r13 r13 IdleState
+and r13 r13 r12
+bnez r13 PurgeToAtmo # Purge to Atmo if Cond Tank temp is too low
+bnez IdleState Idle0# Intake Planet Atmo Until Max Temp
+get r11 db 510
+ld r13 r11 Volume
+ld r12 r11 VolumeOfLiquid
+div r12 r12 r13
+mul r12 r12 5000
+bgt r12 150 Idle0 # Check Pipe Stress and Idle if its too high
+s Vent Mode 1
+s Vent On 1
+s WastePurge On 0
+sd WCooling On 0
+get r13 db 511
+sd r13 On 0
+j Main
+Idle0:
+get r13 db 511
+move IdleState 1
+s Vent On 0
+s WastePurge On 0
+sd WCooling On 0
+sd r13 On 0
+j Main
+PurgeToWaste:
+get r13 db 511
+s Vent On 0
+s WastePurge On 1
+sd WCooling On 0
+sd r13 On 0
+j Main
+PurgeToWater:
+get r13 db 511
+s Vent On 0
+s WastePurge On 0
+sd WCooling On 1
+sd r13 On 0
+s StirlingEngine On 1
+j Main
+PurgeToAtmo:
+get r13 db 511
+s Vent Mode 0
+s Vent On 1
+sd WCooling On 0
+s WastePurge On 0
+sd r13 On 0
+j Main
+PurgeWaterCondTank:
+get r13 db 511
+sd r13 On 1
+s StirlingEngine On 0
+j Main

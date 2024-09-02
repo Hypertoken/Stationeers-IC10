@@ -1,0 +1,62 @@
+#alias Vent d1
+alias GasSensor d0
+alias LED d2
+
+alias RoomPressure r0
+alias RoomTemp r1
+
+alias displayBit r4
+#Config
+define TargetPressure 800
+define Margin 50
+
+#s Vent On 0
+
+move displayBit 1 #Init Display Bit
+Main:
+yield
+
+l RoomPressure GasSensor Pressure
+l RoomTemp GasSensor Temperature
+
+s db Setting RoomPressure
+#Cycle Tank Temp and Pressure on Display if Available
+beq displayBit -1 DisplayRoomTemp #Skip if DisplayBit is not Flipped
+s LED Setting RoomPressure
+s LED Color Color.Green
+j Start #Skip Tank Temp Display
+DisplayRoomTemp:
+sub r6 RoomTemp 273.15 #Convert to Kelvin
+s LED Setting r6
+s LED Color Color.Blue
+
+Start:
+sleep 1
+mul displayBit displayBit -1 #Flip the Display Cycle Bit
+#add r2 TargetPressure Margin
+#sub r3 TargetPressure Margin
+#slt r2 RoomPressure r2
+#sgt r3 RoomPressure r3
+#bnezal r2 Intake
+#bnezal r3 Exhaust
+#nor r3 r2 r3
+#bnez r3 Main
+#Idle
+#s Vent On 0
+j Main
+
+Intake:
+#s Vent On 1
+#s Vent Mode 0
+#s Vent Open 0
+#s Vent PressureExternal 47000
+#s Vent PressureInternal 47000
+j ra
+
+Exhaust:
+#s Vent On 1
+#s Vent Mode 1
+#s Vent Open 0
+#s Vent PressureExternal 47000
+#s Vent PressureInternal 47000
+j ra
