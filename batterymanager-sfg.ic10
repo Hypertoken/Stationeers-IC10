@@ -1,8 +1,6 @@
 # Hypertokens - Battery Management
 alias led1 d0
 alias led2 d1
-alias led3 d2
-alias led4 d3
 
 # Hashed Devices
 define sfg 813146305
@@ -16,7 +14,7 @@ define MBatt HASH("LBattMirror")
 
 # Setup
 define minCharge 0.05 # Percent to start charging
-define maxCharge 0.8 # Percent to stop charging
+define maxCharge 0.99 # Percent to stop charging
 
 define numbatts 2 # How many Station Batteries
 define numlbatts 2 # How many Large Station Batteries
@@ -34,6 +32,7 @@ alias totalcount r9
 mul r0 numbatts 3600000 # Max potential of all Station Batteries
 mul r1 numlbatts 9000001 # Max potential of all Large Station Batteries
 add maxpot r0 r1  # Max potential of all Batteries
+s led2 Mode 1
 #l prevcount db Setting
 move prevcount 0
 move pastcount 0
@@ -52,7 +51,7 @@ add r0 r0 r1
 add r1 r2 r3
 add totalcharge r0 r1 # Total Charge of mirrors
 div r0 totalcharge maxpot # Total Battery Percentage
-
+s led2 Setting r0
 handlesfg:
 lbs r1 sfg 0 Occupied 1 # Is there fuel in the SFG
 seqz r1 r1 # If not...
@@ -70,7 +69,7 @@ sub chutecount chutecount gencount# subtract that amount from the import count
 add totalcount chutecount gencount# odd the gencount to chutecount w
 move pastcount gencount# store the previous gencount
 move prevcount chutecount# store the previous chutecount
-s led4 Setting totalcount# display the total amount
+s led1 Setting totalcount# display the total amount
 j start
 
 # Handle Counting chute

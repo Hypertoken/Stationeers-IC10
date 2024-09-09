@@ -1,0 +1,50 @@
+# DEVICES
+alias InVent d0 # Powered Vent
+alias gSens d1 # Gas Sensor
+alias pAnal d2 # Pipe Analyzer
+alias aTank d3 # Atmosphere Tank
+alias lTank d4 # Liquid Tank
+alias lAnal d5 # Liquid pipe Analyzer
+# VARIABLES
+alias atemp r0 # Current Atmospheric Temperature
+alias gVol r1 # Volume of Gas Pipe
+alias lVol r2 # Volume of Liquid in Gas Pipe
+alias ttemp r3 # Current Tank Temperature
+alias lLiq r4 # Liquid in Liquid tank
+alias gLiq r6 # Total Liquid in Gas Tank
+alias tLiq r6 # Total Liquid in system
+# INIT
+s InVent Mode 1 # Set vent to inward ("Into" the pipes)
+#START
+loop:
+l atemp gSens Temperature # Load the temperature from the Gas sensor
+l ttemp aTank Temperature # Load the temperature from the Atmo tank
+l gVol pAnal Volume  # Load the Volume of the Gas pipe from the Analyzer
+l lVol pAnal VolumeOfLiquid # Load the Liquid Volume in the Gas pipes
+l gLiq aTank VolumeOfLiquid # Load the Liquid Volume in the Gas Tank
+l lLiq lTank VolumeOfLiquid # Load the Liquid Volume in the Liquid Tank
+l tLiq lAnal VolumeOfLiquid # Load the Liquid Volume in the Liquid pipes
+
+add r15 tLiq lLiq # do math (Liquid tank + Liquid Pipes)
+add r14 gLiq lVol # do math (Gas Tank + Gas Pipes)
+add tLiq r15 r14 # more math = (Total Liquid In system)
+s db Setting tLiq
+bgt tLiq 5700 loop # if Total Liquid is more that 5700L do nothing (jump to start of loop)
+sgt r15 ttemp 263.15 # Is Tank temp over -10C?
+slt r14 atemp 253.15 # Is Atmo Temp below -20C?
+and r13 r14 r15 # Are both True
+breq r13 1 2
+bgt ttemp 263.15 purge # If tank temp is over -10C purge the tank until its not.
+s InVent Mode 1 # Set mode back to inward incase we had to purge
+slt r15 atemp 253.15 # set register - is temp Less than -20C
+div r14 lVol gVol # Calculate Pipe Stress
+mul r14 r14 5000 # VolumeOfLiquid / Volume * 5000 = Stress %
+slt r14 r14 90 # set register - is Stress is less than 90%
+and r13 r14 r15 # if Temp is less than -20C and Stress is less than 90%
+s InVent On r13 # turn on the vent, otherwise dont.
+j loop
+
+purge:
+s InVent Mode 0 # Set vent to Outward (Purge Pipes)
+s InVent On 1 # Turn on Vent
+j loop

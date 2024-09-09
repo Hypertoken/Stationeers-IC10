@@ -1,0 +1,128 @@
+alias robot d0         #Logic Transmitter
+alias displayX d1      #LED Display
+alias displayZ d2      #LED Display
+alias displayCharge d4 #LED Display
+alias mirror d5 # Logic Mirror (WeatherStation)
+
+define doors 1736080881 # Small Hangar Doors
+define pSign 1101240679 # Programable Sign (MOD)
+
+alias mode r1 # Robot Mode
+alias charge r2 # Current Battery
+alias stuck r3 # Am I stuck
+alias storm r4 # Is there a storm
+
+setup:
+s displayCharge Color 5
+s displayCharge Mode 2
+sb pSign Mode 4
+define HOMEX 9
+define HOMEZ -5
+define WAYX 17
+define WAYZ -4
+define MINEX 34
+define MINEZ 115
+
+start:
+jal movetowaypoint
+jal travel
+s robot TargetX HOMEX
+s robot TargetZ HOMEZ
+sb pSign Setting 1 # Moving To Garage
+jal travel
+s robot Mode 4
+
+unloadWait:
+yield
+jal updateDisplays
+sb pSign Setting 2 # Unloading
+sb doors Open 0
+beq mode 4 unloadWait
+blt charge 70000 battWait
+bnez storm stormWait
+jal checkstorm
+jal movetowaypoint
+jal travel
+s robot TargetX MINEX
+s robot TargetZ MINEZ
+sb pSign Setting 7 # Moving To Mine
+jal travel
+
+startMining:
+l r0 robot MineablesInVicinity
+beqz r0 start
+jal checkstorm
+s robot Mode 3
+sb pSign Setting 5 # Mining
+
+mineWait:
+yield
+jal updateDisplays
+beq mode 3 mineWait
+bne mode 6 startMining
+sb pSign Setting 6 # Full
+j start
+
+travel:
+push ra
+s robot Mode 2
+
+wait:
+yield
+jal updateDisplays
+l r0 robot VelocityMagnitude
+slt r0 r0 0.2
+mul stuck stuck r0
+add stuck stuck r0
+bgt stuck 20 pathfind
+l mode robot Mode
+beq mode 2 wait
+pop ra
+j ra
+
+battWait:
+sb pSign Setting 4 # Charging
+j unloadWait
+
+stormWait:
+sb pSign Setting 8 # Waiting on Storm
+s robot On 0
+l storm mirror Mode
+j unloadWait
+
+pathfind:
+lb r0 pSign Setting 0
+sb pSign Setting 3 # Got Stuck
+s robot Mode 5
+yield
+jal updateDisplays
+sleep 10
+s robot Mode 2
+sb pSign Setting r0
+move stuck 0
+j wait
+
+updateDisplays:
+l r0 robot PositionX
+s displayX Setting r0
+l r0 robot PositionY
+s robot TargetY r0
+l r0 robot PositionZ
+s displayZ Setting r0
+l mode robot Mode
+ls charge robot 0 Charge
+s displayCharge Setting charge
+j ra
+
+checkstorm:
+l storm mirror Mode
+bnez storm start
+j ra
+
+movetowaypoint:
+sb doors Open 1
+s robot On 1
+s robot TargetX WAYX
+s robot TargetZ WAYZ
+sb pSign Setting 0 # Moving To Waypoint
+j ra

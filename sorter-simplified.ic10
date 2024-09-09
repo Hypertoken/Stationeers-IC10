@@ -5,9 +5,17 @@ alias Led d2
 alias min r1
 alias sec r2
 
+alias rpow r3
+alias ppow r4
+alias totalTime r5
 
-alias rpow r5
-alias ppow r6
+# Additional registers to store the last 5 seconds of data
+alias time1 r6
+alias time2 r7
+alias time3 r8
+alias time4 r9
+alias time5 r10
+alias timeSum r11
 
 init:
 # 0=left, 1=right
@@ -21,27 +29,72 @@ s Sorter Output -1
 
 start:
 yield
-l rpow pAnal PowerRequired #Read cable analyzer
-l ppow pAnal PowerPotential #Read cable analyzer
 
-mul r15 rpow 2 #Power required per 1 second
-div r14 ppow r15 #Power reserve in seconds
-div r13 r14 60 #Power reserve in minutes
-trunc min r13
-sub sec r13 min
-mul sec sec 100
-mul sec sec 60
-div sec sec 100
-trunc sec sec
-div sec sec 100
-add r15 min sec
+# Shift previous time values to make room for the new one
+move time5 time4
+move time4 time3
+move time3 time2
+move time2 time1
 
+# Read current power values
+l rpow pAnal PowerRequired
+l ppow pAnal PowerPotential
+
+# Calculate remaining time in seconds
+mul r15 rpow 2 #
+div r14 ppow r15
+div time1 r14 60
+
+# Calculate the sum of the last 5 time values
+add timeSum time1 time2
+add timeSum timeSum time3
+add timeSum timeSum time4
+add timeSum timeSum time5
+
+# Average the sum of the last 5 time values
+div totalTime timeSum 5
+
+trunc min totalTime # Get minutes part of total time.
+sub sec totalTime min # Get seconds part of total time.
+mul sec sec 100 #
+mul sec sec 60 # Convert to seconds from decimal
+div sec sec 100
+trunc sec sec # Seconds part
+div sec sec 100 # Convert back to decimal but in 0-60 seconds
+add totalTime min sec
+
+# Display the averaged time on the LED
 s db Setting rpow
-s Led Setting r15
+s Led Setting totalTime
 
-ls r0 Sorter 0 OccupantHash
-beq r0 1924673028 toPlanter # soybeans
+ls r0 Sorter 0 OccupantHash # Put Stuff here to redirect specific items
+
+beq r0 -1057658015 toCompost # wheat
+beq r0 -998592080 toCompost # tomato
+beq r0 658916791 toCompost # rice
+beq r0 1277828144 toCompost # pumpkin
+beq r0 -532672323 toCompost # switchgrass
+beq r0 1924673028 toCompost # soybean
+beq r0 1929046963 toCompost # potatoe
+beq r0 -1335056202 toCompost # sugarcane
+beq r0 2044798572 toCompost # mushroom
+beq r0 892110467 toCompost # fern
+beq r0 258339687 toCompost # corn
+beq r0 680051921 toCompost # cocoa
 beq r0 1531087544 toCompost # spooiled food
+
+beq r0 -654756733 toPlanter # wheat seeds
+beq r0 -1922066841 toPlanter # tomato seeds
+beq r0 -1691151239 toPlanter # rice seeds
+beq r0 1423199840 toPlanter # pumpkin seeds
+beq r0 488360169 toPlanter # switchgrass seeds
+beq r0 1783004244 toPlanter # soybean seeds
+beq r0 1005571172 toPlanter # potatoe seeds
+beq r0 -1884103228 toPlanter # sugarcane seeds
+beq r0 311593418 toPlanter # mushroom seeds
+beq r0 -1990600883 toPlanter # fern seeds
+beq r0 -1290755415 toPlanter # corn seeds
+beq r0 1139887531 toPlanter# cocoa seeds
 
 ls r0 Sorter 0 SortingClass
 beq r0 0 start
