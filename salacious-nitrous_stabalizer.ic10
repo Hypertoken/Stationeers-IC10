@@ -1,0 +1,54 @@
+# Salacious Anti-Explosion Nitrolizer Script v0.1
+alias N2OTank d0
+alias StatusLight d1
+alias Nitrolizer d2
+alias DEBUGLED d5
+alias state r15
+move state 0
+s DEBUGLED Setting 555
+Main:
+yield
+l r0 Nitrolizer RatioNitrogenInput2 #Start: Handle Incorrect Gas Mix
+jal CheckRatio #Idle if Gas Mix is not in Range
+l r0 Nitrolizer RatioOxygenInput2
+jal CheckRatio
+
+l r0 Nitrolizer TemperatureInput2#Start: Handle Incorrect Input Gas Temp
+slt r0 r0 300.15 #27c
+jal CheckIdle
+
+l r0 Nitrolizer PressureOutput #Start: Handle High Pressure on the Transition Pipe
+slt r0 r0 859 #N2O at -10c
+jal CheckIdle
+
+l r0 N2OTank Pressure #Start: Check N2O Tank Pressure
+slt r0 r0 5000
+jal CheckIdle
+
+lbn r0 435685051 HASH("N2OCoolingPA") Temperature Maximum
+l r1 N2OTank Temperature
+slt r2 r0 273.15
+sgt r3 r1 274.15
+and r2 r2 r3 # If PA Temp is Below 0C and N2O Needs Cooling
+sbn -1280984102 HASH("N2OCoolingValve") On r2
+brnez r2 5
+sgt r2 r0 273.15
+slt r3 r1 272.15
+s DEBUGLED Setting r3
+and r2 r2 r3 # If PA Temp is Above 0C and N2O Needs Heating
+sbn -1280984102 HASH("N2OCoolingValve") On r2
+
+s Nitrolizer Mode state
+sub r1 1 state #Flip Result
+s StatusLight On r1 #Turn on FlashingLight if Ratio is Wrong
+j Main
+
+CheckRatio:
+sgt r0 r0 0.51
+slt r1 r0 0.49
+nor r0 r0 r1
+CheckIdle:
+#beq r0 state ra
+move state r0
+beqz r0 Main
+j ra 

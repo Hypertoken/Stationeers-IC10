@@ -1,72 +1,64 @@
-alias robot d0         #Logic Transmitter
-alias displayX d1      #LED Display
-alias displayZ d2      #LED Display
-alias displayCharge d4 #LED Display
-alias mirror d5 # Logic Mirror (WeatherStation)
-
+alias robot d0         #Logic Transmi
+alias IC d1 # Other IC
+alias switch d3 # Door Switch
+alias mirror d4 # Logic Mirror (WeatherStation)
 define doors 1736080881 # Small Hangar Doors
 define pSign 1101240679 # Programable Sign (MOD)
-
+define keypad -555492833 # Keypad memory (MOD)
 alias mode r1 # Robot Mode
 alias charge r2 # Current Battery
 alias stuck r3 # Am I stuck
 alias storm r4 # Is there a storm
-
+alias MINEX r5 # 80
+alias MINEZ r6 # 160
 setup:
-s displayCharge Color 5
-s displayCharge Mode 2
-sb pSign Mode 4
 define HOMEX 9
 define HOMEZ -5
 define WAYX 17
 define WAYZ -4
-define MINEX 34
-define MINEZ 115
-
 start:
+lbn MINEX keypad HASH("XKey") Setting 0
+lbn MINEZ keypad HASH("ZKey") Setting 0
 jal movetowaypoint
 jal travel
 s robot TargetX HOMEX
 s robot TargetZ HOMEZ
-sb pSign Setting 1 # Moving To Garage
+sbn pSign HASH("AimeeSign") Setting 1 # Moving To Garage
 jal travel
 s robot Mode 4
-
 unloadWait:
+l r14 switch Open
 yield
 jal updateDisplays
-sb pSign Setting 2 # Unloading
-sb doors Open 0
+sbn pSign HASH("AimeeSign") Setting 2 # Unloading
+sb doors Open r14
 beq mode 4 unloadWait
-blt charge 70000 battWait
+bgt charge 0.5 skipcharging
+jal chargebattery
+skipcharging:
 bnez storm stormWait
-jal checkstorm
 jal movetowaypoint
 jal travel
 s robot TargetX MINEX
 s robot TargetZ MINEZ
-sb pSign Setting 7 # Moving To Mine
+sbn pSign HASH("AimeeSign") Setting 7 # Moving To Mine
 jal travel
-
 startMining:
-l r0 robot MineablesInVicinity
-beqz r0 start
 jal checkstorm
+s db Setting r13
+beqz r13 getnewlocation
 s robot Mode 3
-sb pSign Setting 5 # Mining
-
+sbn pSign HASH("AimeeSign") Setting 5 # Mining
 mineWait:
 yield
 jal updateDisplays
 beq mode 3 mineWait
 bne mode 6 startMining
-sb pSign Setting 6 # Full
+sbn pSign HASH("AimeeSign") Setting 6 # Full
 j start
-
 travel:
 push ra
 s robot Mode 2
-
 wait:
 yield
 jal updateDisplays
@@ -79,50 +71,56 @@ l mode robot Mode
 beq mode 2 wait
 pop ra
 j ra
-
-battWait:
-sb pSign Setting 4 # Charging
-j unloadWait
-
+chargebattery:
+sbn pSign HASH("AimeeSign") Setting 4 # Charging
+jal updateDisplays
+blt charge 0.999 chargebattery
+j ra
 stormWait:
-sb pSign Setting 8 # Waiting on Storm
+sbn pSign HASH("AimeeSign") Setting 8 # Waiting on Storm
 s robot On 0
-l storm mirror Mode
 j unloadWait
-
 pathfind:
-lb r0 pSign Setting 0
-sb pSign Setting 3 # Got Stuck
+lbn r15 pSign HASH("AimeeSign") Setting 0
+sbn pSign HASH("AimeeSign") Setting 3 # Got Stuck
 s robot Mode 5
-yield
 jal updateDisplays
 sleep 10
 s robot Mode 2
-sb pSign Setting r0
+sbn pSign HASH("AimeeSign") Setting r15
 move stuck 0
 j wait
-
 updateDisplays:
+l r13 robot MineablesInVicinity
+sbn -815193061 HASH("Debug") Setting r13
+l storm mirror Mode
 l r0 robot PositionX
-s displayX Setting r0
+round r0 r0
+sbn pSign HASH("XPos") SettingInput r0
 l r0 robot PositionY
 s robot TargetY r0
 l r0 robot PositionZ
-s displayZ Setting r0
+round r0 r0
+sbn pSign HASH("ZPos") SettingInput r0
 l mode robot Mode
-ls charge robot 0 Charge
-s displayCharge Setting charge
+ls charge robot 0 ChargeRatio
 j ra
-
 checkstorm:
-l storm mirror Mode
 bnez storm start
 j ra
-
 movetowaypoint:
 sb doors Open 1
 s robot On 1
 s robot TargetX WAYX
 s robot TargetZ WAYZ
-sb pSign Setting 0 # Moving To Waypoint
+sbn pSign HASH("AimeeSign") Setting 0 # Moving To Waypoint
+j ra
+getnewlocation:
+push ra
+yield
+jal updateDisplays
+l r0 IC Setting
+beqz r0 getnewlocation
+s db Setting r0
+pop ra
 j ra

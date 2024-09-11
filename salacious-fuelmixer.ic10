@@ -1,0 +1,107 @@
+#### Settings
+## they are fine for fuel+tank+d1 as o2
+define targetKpa 7000
+define dOneRatio 0.500
+define smoothPc 90
+define maxDiffRatio 0.000
+
+define minOutput 0
+define maxOutput 1
+lbn r15 HASH("StructureTankSmallInsulated") HASH("N2OPremixTank") ReferenceId Maximum
+sbn -815193061 HASH("N2ODEBUG") Setting 555
+j setup
+loadSensor:
+ld curKpa r15 Pressure
+bgt curKpa 47500 main
+# change RatioOxygen to what is pumped (d1)
+ld curRatio r15 RatioOxygen
+j ra
+setProcessor:
+sbn -321403609 HASH("OxygenPump") On 1 # Volume Pump
+sbn -321403609 HASH("OxygenPump") Setting pump1Val
+sbn -321403609 HASH("NitrogenPump") On 1
+sbn -321403609 HASH("NitrogenPump") Setting pump2Val
+#s pump1 On 1
+#s pump2 On 1
+#s pump1 Setting pump1Val
+s db Setting pump1Val
+#s pump2 Setting pump2Val
+j ra
+#### Code
+setup:
+#alias sensor d0
+alias OxygenTank d0 # Oxygen
+alias NitrogenTank d1 # Nitrogen
+
+alias curKpa r0
+alias curRatio r1
+alias pump1Val r2
+alias pump2Val r3
+alias smoothKpa r4
+alias curKpaDiff r5
+alias curRatioDiff r6
+alias fillOffset r7
+alias tempMaxOutput r8
+alias curRatioDiffAbs r9
+
+div smoothKpa targetKpa 100
+mul smoothKpa smoothKpa smoothPc
+sub smoothKpa targetKpa smoothKpa
+j main
+
+pressCalc:
+# pressure based (only pump1, 2nd will be 'lagging')
+# if pressure difference  is not eq, set pump to 10
+# if pressure difference is negative, set to 0
+sub pump1Val targetKpa curKpa
+min pump1Val pump1Val maxOutput
+max pump1Val pump1Val 0
+move pump2Val pump1Val
+blez pump1Val ratioCalc
+j ra
+
+# ratio based pump values
+ratioCalc:
+div pump1Val curRatioDiff maxDiffRatio
+mul pump1Val pump1Val maxOutput
+mul pump2Val pump1Val -1
+j ra
+
+checkInputTanks:
+l r0 OxygenTank TotalMoles
+sgt r0 r0 500
+l r1 NitrogenTank TotalMoles
+sgt r1 r1 500
+and r0 r0 r1
+bnez r0 ra
+sbn -321403609 HASH("OxygenPump") On 0 
+sbn -321403609 HASH("NitrogenPump") On 0
+#s pump1 On 0
+#s pump2 On 0
+j main
+
+main:
+yield
+jal checkInputTanks
+jal loadSensor
+move tempMaxOutput maxOutput
+
+sub curRatioDiff dOneRatio curRatio
+abs curRatioDiffAbs curRatioDiff
+bleal curRatioDiffAbs maxDiffRatio pressCalc
+bgtal curRatioDiffAbs maxDiffRatio ratioCalc
+
+# max pump output if in smoothing area
+sub fillOffset targetKpa curKpa
+max fillOffset fillOffset 0
+min fillOffset fillOffset smoothKpa
+div tempMaxOutput fillOffset smoothKpa
+mul tempMaxOutput tempMaxOutput maxOutput
+
+min pump1Val pump1Val tempMaxOutput
+min pump2Val pump2Val tempMaxOutput
+max pump1Val pump1Val minOutput
+max pump2Val pump2Val minOutput
+
+jal setProcessor
+j main

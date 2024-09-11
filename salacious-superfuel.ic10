@@ -1,0 +1,98 @@
+#### Settings
+## they are fine for fuel+tank+d1 as o2
+define targetKpa 760
+define dOneRatio 0.500
+define smoothPc 90
+define maxDiffRatio 0.003
+define minOutput 0
+alias maxOutput 1
+
+#sbn -815193061 HASH("N2ODEBUG") Setting 555
+j setup
+loadSensor:
+lbn curKpa 272136332 HASH("SuperFuelTank") Pressure Maximum
+bgt curKpa 47500 main
+# change RatioOxygen to what is pumped (d1)
+lbn curRatio 272136332 HASH("SuperFuelTank") RatioVolatiles Maximum
+
+j ra
+setProcessor:
+sbn 1310794736 HASH("VolatilesPump") On 1
+sbn 1310794736 HASH("VolatilesPump") Setting pump1Val
+sbn 1310794736 HASH("N2OPump") On 1
+sbn 1310794736 HASH("N2OPump") Setting pump2Val
+s db Setting pump1Val
+j ra
+setup:
+alias curKpa r0
+alias curRatio r1
+alias pump1Val r2
+alias pump2Val r3
+alias smoothKpa r4
+alias curKpaDiff r5
+alias curRatioDiff r6
+alias fillOffset r7
+alias tempMaxOutput r8
+alias curRatioDiffAbs r9
+
+div smoothKpa targetKpa 100
+mul smoothKpa smoothKpa smoothPc
+sub smoothKpa targetKpa smoothKpa
+j main
+
+pressCalc:
+sub pump1Val targetKpa curKpa
+min pump1Val pump1Val maxOutput
+max pump1Val pump1Val 0
+move pump2Val pump1Val
+blez pump1Val ratioCalc
+j ra
+
+ratioCalc:
+div pump1Val curRatioDiff maxDiffRatio
+mul pump1Val pump1Val maxOutput
+mul pump2Val pump1Val -1
+j ra
+
+checkInputTanks:
+lbn r0 272136332 HASH("N2OTank") TotalMoles Maximum
+sgt r0 r0 400
+l r1 d0 TotalMoles
+sgt r1 r1 400
+and r0 r0 r1
+lbn r1 272136332 HASH("N2OTank") Temperature Maximum
+sgt r1 r1 253.15 #-20c
+l r2 d0 Temperature
+sgt r2 r2 253.15 #-20c
+and r1 r1 r2
+and r0 r0 r1
+#lbn r1 321604921 HASH("MakeSuperFuel") Open Maximum
+#and r0 r0 r1
+bnez r0 ra
+sbn 1310794736 HASH("N2OPump") On 0
+sbn 1310794736 HASH("VolatilesPump") On 0
+j main
+
+main:
+yield
+lbn r0 272136332 HASH("SuperFuelTank") Temperature Maximum
+sgt r0 r0 303.15 #30c
+sbn 1310794736 HASH("SuperFuelEvac") On r0
+jal checkInputTanks
+jal loadSensor
+move tempMaxOutput maxOutput
+sub curRatioDiff dOneRatio curRatio
+abs curRatioDiffAbs curRatioDiff
+bleal curRatioDiffAbs maxDiffRatio pressCalc
+bgtal curRatioDiffAbs maxDiffRatio ratioCalc
+sub fillOffset targetKpa curKpa
+max fillOffset fillOffset 0
+min fillOffset fillOffset smoothKpa
+div tempMaxOutput fillOffset smoothKpa
+mul tempMaxOutput tempMaxOutput maxOutput
+min pump1Val pump1Val tempMaxOutput
+min pump2Val pump2Val tempMaxOutput
+max pump1Val pump1Val minOutput
+max pump2Val pump2Val minOutput
+jal setProcessor
+j main
