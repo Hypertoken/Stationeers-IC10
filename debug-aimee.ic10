@@ -2,6 +2,7 @@ alias robot d0         #Logic Transmi
 alias IC d1 # Other IC
 alias switch d3 # Door Switch
 alias mirror d4 # Logic Mirror (WeatherStation)
+alias debug d5
 define doors 1736080881 # Small Hangar Doors
 define pSign 1101240679 # Programable Sign (MOD)
 define keypad -555492833 # Keypad memory (MOD)
@@ -33,9 +34,9 @@ jal updateDisplays
 sbn pSign HASH("AimeeSign") Setting 2 # Unloading
 sb doors Open r14
 beq mode 4 unloadWait
-bgt charge 0.5 skipcharging
+ls charge robot 0 ChargeRatio
+brgt charge 0.75 2
 jal chargebattery
-skipcharging:
 bnez storm stormWait
 jal movetowaypoint
 jal travel
@@ -72,9 +73,9 @@ beq mode 2 wait
 pop ra
 j ra
 chargebattery:
+ls charge robot 0 ChargeRatio
 sbn pSign HASH("AimeeSign") Setting 4 # Charging
-jal updateDisplays
-blt charge 0.999 chargebattery
+blt charge 0.90 chargebattery
 j ra
 stormWait:
 sbn pSign HASH("AimeeSign") Setting 8 # Waiting on Storm
@@ -92,7 +93,7 @@ move stuck 0
 j wait
 updateDisplays:
 l r13 robot MineablesInVicinity
-sbn -815193061 HASH("Debug") Setting r13
+s debug Setting r13
 l storm mirror Mode
 l r0 robot PositionX
 round r0 r0
@@ -103,7 +104,6 @@ l r0 robot PositionZ
 round r0 r0
 sbn pSign HASH("ZPos") SettingInput r0
 l mode robot Mode
-ls charge robot 0 ChargeRatio
 j ra
 checkstorm:
 bnez storm start

@@ -1,12 +1,11 @@
 alias robot d0    #Logic Transmitter
 alias IC d1       # Other IC
 alias memoryX d2  # Memory (New X coordinate)
-alias memoryZ d3  # Memory (New Z coordinate)
-
-# Constants
+alias memoryZ d3  # Memory (New Z coordinate)a
+alias warning d4
+alias mineables d5
 define SEARCHRADIUS 50  # Maximum search radius
 define pSign 1101240679 # Programable Sign (MOD)
-alias charge r2 # Current Battery
 
 setup:
 sbn pSign HASH("AimeeSign") Mode 4
@@ -17,65 +16,24 @@ sbn pSign HASH("ZPos") Mode 4
 sbn pSign HASH("Charge") Mode 6
 
 start:
-ls charge robot 0 Charge
-sbn pSign HASH("Charge") SettingInput charge
+ls r0 robot 0 Charge
+sbn pSign HASH("Charge") SettingInput r0
 ls r0 robot 0 ChargeRatio
-brlt r0 1  3
-sbn pSign HASH("Charge") Setting 15
-j checkmineable
-brlt r0 0.93 3
-sbn pSign HASH("Charge") Setting 14
-j checkmineable
-brlt r0 0.87 3
-sbn pSign HASH("Charge") Setting 13
-j checkmineable
-brlt r0 0.81 3
-sbn pSign HASH("Charge") Setting 12
-j checkmineable
-brlt r0 0.75 3
-sbn pSign HASH("Charge") Setting 11
-j checkmineable
-brlt r0 0.69 3
-sbn pSign HASH("Charge") Setting 10
-j checkmineable
-brlt r0 0.62 3
-sbn pSign HASH("Charge") Setting 9
-j checkmineable
-brlt r0 0.56 3
-sbn pSign HASH("Charge") Setting 8
-j checkmineable
-brlt r0 0.50 3
-sbn pSign HASH("Charge") Setting 7
-j checkmineable
-brlt r0 0.44 3
-sbn pSign HASH("Charge") Setting 6
-j checkmineable
-brlt r0 0.37 3
-sbn pSign HASH("Charge") Setting 5
-j checkmineable
-brlt r0 0.31 3
-sbn pSign HASH("Charge") Setting 4
-j checkmineable
-brlt r0 0.25 3
-sbn pSign HASH("Charge") Setting 3
-j checkmineable
-brlt r0 0.19 3
-sbn pSign HASH("Charge") Setting 2
-j checkmineable
-brlt r0 0.12 3
-sbn pSign HASH("Charge") Setting 1
-j checkmineable
-sbn pSign HASH("Charge") Setting 0
+div r0 r0 0.0625
+trunc r0 r0
+sbn pSign HASH("Charge") Setting r0
 
 checkmineable:
 l r0 IC Setting
-breqz r0 2
+s db Setting r0
+#s mineables Setting r0
+blt r0 100 getnewlocation#beqz r0 getnewlocation
 j start
 
 getnewlocation:
-s db Setting 1
 sbn pSign HASH("AimeeSign") Setting 9 # Searching for new location
 move r15 0 # Initialize search radius
+s warning On 1
 
 searchLoop:
 add r15 r15 1 # Increase search radius
@@ -89,6 +47,8 @@ l r13 robot PositionX
 add r12 r12 r13
 floor r12 r12
 s robot TargetX r12
+s mineables Setting r12
+yield
 # Calculate new Z position
 cos r11 r14
 mul r11 r11 r15
@@ -96,13 +56,14 @@ l r13 robot PositionZ
 add r11 r11 r13
 floor r11 r11
 s robot TargetZ r11
+s mineables Setting r11
 # Move to the new position
 s robot Mode 2 # Set to Move mode
 yield
 jal waitForArrival
 # Check for mineables
 l r0 robot MineablesInVicinity
-bnez r0 locationFound
+bge r0 100 locationFound #bnez r0 locationFound
 # Move to next angle
 add r14 r14 45
 blt r14 360 angleLoop
@@ -113,15 +74,18 @@ sbn pSign HASH("AimeeSign") Setting 10 # No new location found
 j start
 
 locationFound:
-l r0 robot PositionX
-s memoryX Setting r0
-l r0 robot PositionZ
-s memoryZ Setting r0
+l r1 robot PositionX
+round r1 r1
+s memoryX Setting r1
+l r1 robot PositionZ
+round r1 r1
+s memoryZ Setting r1
 sbn pSign HASH("AimeeSign") Setting 11 # New location found
-s db Setting 1
+s db Setting r0
+s warning On 0
 j start
 
 waitForArrival:
 l r0 robot Mode
-bne r0 0 waitForArrival
+beq r0 2 waitForArrival
 j ra

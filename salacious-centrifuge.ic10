@@ -1,0 +1,122 @@
+alias Cenrifuge d0
+alias CurrentReagents r0
+alias CurrentRPM r1
+alias CurrentStress r2
+alias OnOff r3
+define MinRPM 15
+define MaxStress 80.0
+define HigherStress 50.0
+define HighStress 35.0
+define MedStress 25.0
+define LowStress 20.0
+define MedTransRPM 200 # 200+ med speed
+define HighTransRPM 400 #400+ high speed
+define HigherTransRPM 700 #700+ higher speed
+define MaxTransRPM 1000 #1000+ max speed
+define MaxReagents 2500
+define MinReagents 2
+preStart:
+l CurrentRPM d0 Rpm
+bgt CurrentRPM MedTransRPM main
+s d0 On 0
+s d0 Throttle 0
+s d0 CombustionLimiter 0
+blt CurrentRPM MinRPM checkReagents
+j preStart
+checkReagents:
+l CurrentReagents d0 Reagents
+blt CurrentReagents MinReagents close
+bgt CurrentReagents MinReagents empty
+j checkReagents
+empty:
+s d0 Open 1
+j checkReagents
+close:
+s d0 Open 0
+s d0 On 1
+l CurrentStress d0 Stress
+bnez CurrentStress close
+j main
+main:
+l CurrentStress d0 Stress
+l CurrentRPM d0 Rpm
+l CurrentReagents d0 Reagents
+l OnOff d0 On
+beqz OnOff spinDown
+bgt CurrentStress MaxStress spinDown
+bgt CurrentReagents MaxReagents spinDown
+blt CurrentRPM MedTransRPM lowSpeed # less 200
+blt CurrentRPM HighTransRPM medSpeed # less 400
+blt CurrentRPM HigherTransRPM highSpeed # less 800
+blt CurrentRPM MaxTransRPM higherSpeed # less 1000
+bgt CurrentRPM MaxTransRPM maxSpeed #1000+
+j main
+lowSpeed:
+l CurrentStress d0 Stress
+bgt CurrentStress LowStress pulseSlow
+s d0 On 1
+s d0 Open 0
+s d0 Throttle 10
+s d0 CombustionLimiter 10
+sleep 2
+s d0 Throttle 0
+s d0 CombustionLimiter 0
+sleep 2
+j main
+medSpeed:
+l CurrentStress d0 Stress
+bgt CurrentStress MedStress pulseSlow
+s d0 Throttle 20
+s d0 CombustionLimiter 20
+sleep 2
+s d0 Throttle 10
+s d0 CombustionLimiter 10
+sleep 2
+yield
+j main
+highSpeed:
+l CurrentStress d0 Stress
+bgt CurrentStress HigherStress pause
+s d0 Throttle 30
+s d0 CombustionLimiter 30
+sleep 2
+s d0 Throttle 20
+s d0 CombustionLimiter 20
+sleep 2
+j main
+higherSpeed:
+l CurrentStress d0 Stress
+bgt CurrentStress HighStress highSpeed
+s d0 Throttle 60
+s d0 CombustionLimiter 60
+sleep 2
+s d0 Throttle 40
+s d0 CombustionLimiter 40
+sleep 1
+j main
+maxSpeed:
+s d0 Throttle 100
+s d0 CombustionLimiter 100
+j main
+pulseSlow:
+s d0 Throttle 0
+s d0 CombustionLimiter 0
+sleep 4
+s d0 Throttle 10
+s d0 CombustionLimiter 10
+sleep 1
+l CurrentStress d0 Stress
+l CurrentRPM d0 Rpm
+blt CurrentStress LowStress main
+blt CurrentRPM MinRPM preStart
+j main
+pause:
+s d0 Throttle 0
+s d0 CombustionLimiter 0
+sleep 4
+j medSpeed
+spinDown:
+s d0 On 0
+l CurrentRPM d0 Rpm
+blt CurrentRPM MinRPM preStart
+j spinDown
