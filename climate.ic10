@@ -1,0 +1,76 @@
+# Controls 1 wall cooler and 1 heater with PID
+alias gasSensor d0
+alias wallHeater d1
+alias wallCooler d2
+alias inVent d4
+
+alias Kp r15
+alias integral r14
+alias derivative r13
+alias currentTemp r12
+alias setpoint r11
+alias error r10
+alias lastError r9
+alias pidout r8
+alias currentPress r7
+
+define Analyzer 1036015121
+define led -53151617
+
+define maxPress 60.5
+define hysteresis 0.2
+
+move Kp 5
+define Ki 0.01
+define Kd 0.05
+
+move integral 0.0
+move derivative 0.0
+
+#INITIAL DEVICE STATES
+s wallHeater On 0
+s wallCooler On 0
+sb led Mode 1
+s inVent On 0
+s inVent PressureInternal 46000
+
+start:
+yield
+l currentTemp gasSensor Temperature #Read Temp From sensor
+move setpoint 298.15
+
+# PID calculations
+sub error setpoint currentTemp
+add integral integral error
+sub derivative error lastError
+
+# Calculate PID output
+#pidout = (Kp * error) + (Ki * integral) + (Kd * derivative) + bias
+mul r0 error Kp # P term
+mul r1 integral Ki # I term
+mul r2 derivative Kd # D term
+add pidout r0 r1
+add pidout pidout r2
+
+# Cooler logic (turns on when pidout is negative)
+mul r0 hysteresis -1
+slt r0 pidout r0
+s wallCooler On r0
+
+# New cooler power setting logic
+mul r0 pidout -1 # Invert PID output for cooling
+max r0 r0 0 # Ensure non-negative
+min r0 r0 100 # Clamp to 0-100 range
+s wallCooler Setting r0
+
+# Heater logic (turns on when pidout is positive)
+sgt r0 pidout hysteresis
+s wallHeater On r0
+mul r0 error -1
+move lastError error
+s db Setting r0
+
+l currentPress gasSensor Pressure #Read Temp From sensor
+sle r0 currentPress maxPress
+s inVent On r0
+j start

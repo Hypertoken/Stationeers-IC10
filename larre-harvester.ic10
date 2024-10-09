@@ -1,0 +1,90 @@
+#Made by Blidis larre seeds and poops
+alias counter r10
+alias hydroponics r11
+alias larre d0
+define HYDRO -1841632400
+
+define dump 23
+define seed 22
+define poop 1
+
+push HASH("D1")
+push HASH("D2")
+push HASH("D3")
+push HASH("D4")
+push HASH("D5")
+push HASH("D6")
+push HASH("D7")
+push HASH("D8")
+push HASH("D9")
+push HASH("D10")
+push HASH("D11")
+push HASH("D12")
+push HASH("D13")
+push HASH("D14")
+push HASH("D15")
+push HASH("D16")
+push HASH("D17")
+push HASH("D18")
+push HASH("D19")
+push HASH("D20")
+push 0
+
+reset:
+move counter 0
+
+start:
+yield
+ls r0 larre 0 Occupied
+bnez r0 dumpfood
+add counter counter 1
+move sp counter
+pop hydroponics
+add r15 counter 1
+beqz hydroponics reset
+yield
+lbns r0 HYDRO hydroponics 0 Seeding 0
+beq r0 1 harvest
+j start
+
+addpoop:
+lbns r1 HYDRO hydroponics 1 Quantity 1
+beq r1 1 addseed
+s larre Setting poop
+l r0 larre Idle
+beqz r0 addpoop
+ls r0 larre 255 OccupantHash
+s db Setting r0
+s larre Activate 1
+
+addseed:
+s larre Setting r15
+l r0 larre Idle
+beqz r0 addseed
+brnez r1 3
+s larre Activate 1
+sleep 3
+s larre Activate 1
+j start
+
+harvest:
+s larre Setting r15
+l r0 larre Idle
+beqz r0 harvest
+ls r0 larre 255 OccupantHash
+beqz r0 dumpfood
+s db Setting r0
+s larre Activate 1
+j harvest
+
+dumpfood:
+yield
+s larre Setting dump
+l r0 larre Idle
+beqz r0 dumpfood
+ls r0 larre 0 SortingClass
+beq r0 4 addpoop
+ls r0 larre 0 Occupied
+beqz r0 start
+s larre Activate r0
+j dumpfood

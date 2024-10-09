@@ -1,0 +1,105 @@
+# Switch on-off and see the pin's names
+alias lprinter d0 #l.1
+alias pprinter d1 #l.1
+alias eprinter d2 #l.1
+alias tprinter d3 #l.1
+alias rprinter d4 #l.1
+yield #l.1
+reset:
+sbn -555492833 -1849130084 Setting 0 #l.22
+sbn -555492833 834041126 Setting 0 #l.23
+sbn -555492833 72402511 Setting 0 #l.24
+sbn -555492833 -973516491 Setting 0 #l.25
+sbn -555492833 -1507236849 Setting 0 #l.26
+main:
+yield #l.28
+dolathe:
+lbn r0 -555492833 -1849130084 Setting 0 #l.31
+ble r0 0 23 #l.31
+# Check the keypad for an ammount above 0
+s d0 On 1 #l.32
+# If the keypad is above zero turn on
+lbn r0 -555492833 -1849130084 Setting 0 #l.33
+sbn -2020231820 363961379 Setting r0 #l.33
+# Print the things untill it gets to keypad ammount
+lbn r1 -555492833 -1849130084 Setting 0 #l.35
+l r0 d0 ExportCount #l.35
+bgt r1 r0 34 #l.35
+# reset
+s d0 ClearMemory 1 #l.36
+# Clear Count
+s d0 On 0 #l.37
+# Stop Printing (Turn Off)
+sbn -555492833 -1849130084 Setting 0 #l.38
+# Clear Keypad
+# All the rest use the exact same logic
+lbn r2 -555492833 -1849130084 Setting 0 #l.40
+l r0 d0 ExportCount #l.40
+sub r1 r2 r0 #l.40
+sbn -815193061 -1652094563 Setting r1 #l.40
+dopipes:
+lbn r0 -555492833 834041126 Setting 0 #l.43
+ble r0 0 45 #l.43
+s d1 On 1 #l.44
+lbn r0 -555492833 834041126 Setting 0 #l.45
+sbn -2020231820 -1098961259 Setting r0 #l.45
+lbn r1 -555492833 834041126 Setting 0 #l.47
+l r0 d1 ExportCount #l.47
+bgt r1 r0 51 #l.47
+s d1 ClearMemory 1 #l.48
+s d1 On 0 #l.49
+sbn -555492833 834041126 Setting 0 #l.50
+lbn r2 -555492833 834041126 Setting 0 #l.52
+l r0 d1 ExportCount #l.52
+sub r1 r2 r0 #l.52
+sbn -815193061 949449502 Setting r1 #l.52
+doelec:
+lbn r0 -555492833 72402511 Setting 0 #l.55
+ble r0 0 61 #l.55
+s d2 On 1 #l.56
+lbn r0 -555492833 72402511 Setting 0 #l.57
+sbn -2020231820 -465497619 Setting r0 #l.57
+lbn r1 -555492833 72402511 Setting 0 #l.59
+l r0 d2 ExportCount #l.59
+bgt r1 r0 67 #l.59
+s d2 ClearMemory 1 #l.60
+s d2 On 0 #l.61
+sbn -555492833 72402511 Setting 0 #l.62
+lbn r2 -555492833 72402511 Setting 0 #l.64
+l r0 d2 ExportCount #l.64
+sub r1 r2 r0 #l.64
+sbn -815193061 -1869124628 Setting r1 #l.64
+dtools:
+lbn r0 -555492833 -973516491 Setting 0 #l.67
+ble r0 0 77 #l.67
+s d3 On 1 #l.68
+lbn r0 -555492833 -973516491 Setting 0 #l.69
+sbn -2020231820 151362343 Setting r0 #l.69
+lbn r1 -555492833 -973516491 Setting 0 #l.71
+l r0 d3 ExportCount #l.71
+bgt r1 r0 83 #l.71
+s d3 ClearMemory 1 #l.72
+s d3 On 0 #l.73
+sbn -555492833 -973516491 Setting 0 #l.74
+lbn r2 -555492833 -973516491 Setting 0 #l.76
+l r0 d3 ExportCount #l.76
+sub r1 r2 r0 #l.76
+sbn -815193061 -854075938 Setting r1 #l.76
+dorocket:
+lbn r0 -555492833 -1507236849 Setting 0 #l.79
+ble r0 0 93 #l.79
+s d4 On 1 #l.80
+lbn r0 -555492833 -1507236849 Setting 0 #l.81
+sbn -2020231820 1713068122 Setting r0 #l.81
+lbn r1 -555492833 -1507236849 Setting 0 #l.83
+l r0 d4 ExportCount #l.83
+bgt r1 r0 99 #l.83
+s d4 ClearMemory 1 #l.84
+s d4 On 0 #l.85
+sbn -555492833 -1507236849 Setting 0 #l.86
+lbn r2 -555492833 -1507236849 Setting 0 #l.88
+l r1 d4 ExportCount #l.88
+sub r0 r2 r1 #l.88
+sbn -815193061 1113006206 Setting r0 #l.88
+j main #l.90
+# Compiled at 2024-09-17 09:54 by Exca's Basic10.

@@ -1,0 +1,47 @@
+# Controls 1 wall cooler with P controller
+alias gasSensor d0
+alias wallCooler d2
+alias inVent d4
+
+alias setpoint r15
+alias wallOn r14
+alias error r13
+alias Kp r12
+
+alias pidout r11
+alias currentTemp r10
+alias currentPress r9
+
+define maxPress 60.5
+
+move Kp 0.5  # Adjust this value as needed
+
+# INITIAL DEVICE STATES
+s wallCooler On 0
+
+start:
+  yield
+  l currentTemp gasSensor Temperature  # Read Temp From sensor
+  move setpoint 298.15
+
+  # P controller calculations
+  sub error setpoint currentTemp
+  mul r0 error -1
+  s db Setting r0
+  mul pidout error Kp
+
+  # Cooler logic (turns on when pidout is negative)
+  slt wallOn pidout 0
+  s wallCooler On wallOn
+
+  # Cooler power setting logic
+  mul pidout pidout -1  # Invert PID output for cooling
+  max pidout pidout 0  # Ensure non-negative
+  min pidout pidout 100  # Clamp to 0-100 range
+  s wallCooler Setting pidout
+
+  l currentPress gasSensor Pressure #Read Temp From sensor
+  sle r0 currentPress maxPress
+  s inVent On r0
+
+  j start

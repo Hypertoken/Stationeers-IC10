@@ -19,9 +19,9 @@ alias derivative r9
 
 define hysteresis 0.2
 
-move Kp 5
-define Ki 0.01
-define Kd 0.05
+move Kp 45
+define Ki 5.4
+define Kd 7.5
 
 move bias 0
 move integral 0.0

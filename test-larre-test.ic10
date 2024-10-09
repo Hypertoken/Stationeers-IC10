@@ -1,0 +1,124 @@
+alias larre d0
+alias seedBin d1
+alias fertBin d2
+
+alias station r15
+alias position r14
+alias stackPos r13
+
+define potID HASH("StructureHydroponicsTrayData")
+define display HASH("StructureConsoleLED5")
+
+define outpos 23 # Station your drop bin is at
+define seedpos 22 # Station your seed pickup bin is at
+define fertpos 1 # Station your fertilizer pickup bin is at
+move sp 6
+
+push HASH("D1")
+push HASH("D2")
+push HASH("D3")
+push HASH("D4")
+push HASH("D5")
+push HASH("D6")
+push HASH("D7")
+push HASH("D8")
+push HASH("D9")
+push HASH("D10")
+push HASH("D11")
+push HASH("D12")
+push HASH("D13")
+push HASH("D14")
+push HASH("D15")
+push HASH("D16")
+push HASH("D17")
+push HASH("D18")
+push HASH("D19")
+push HASH("D20")
+IterateStackDevices:
+    yield
+    move stackPos 0
+CheckNextDevice:
+    add station stackPos 2
+    add sp 7 stackPos
+    pop position
+    brle stackPos 19 2
+    j IterateStackDevices
+    add stackPos stackPos 1
+checkhealth:
+    lbns r0 potID position 0 Health 0
+    bne r0 0 checkplant
+    move sp 0
+    push station
+    jal SendLarreToTask
+checkplant:
+    lbns r0 potID position 0 Occupied 0
+    seq r2 r0 1
+    ls r0 seedBin 0 Occupied
+    seq r1 r0 0
+    or r0 r2 r1
+    breqz r0 2
+    j AddFert
+    ls r0 larre 0 Occupied
+    bne r0 0 AddFert
+    move sp 0
+    push seedpos
+    jal SendLarreToTask
+AddFert:
+    lbns r0 potID position 1 Occupied 0
+    seq r2 r0 1
+    ls r0 fertBin 0 Occupied
+    seq r1 r0 0
+    or r0 r2 r1
+    breqz r0 7
+    ls r0 larre 0 Occupied
+    brne r0 1 4
+    move sp 0
+    push station
+    jal SendLarreToTask
+    j ContinueHarvest
+    move sp 0
+    push fertpos
+    jal SendLarreToTask
+    move sp 0
+    push station
+    jal SendLarreToTask
+    ls r0 larre 0 Occupied
+    bne r0 1 ContinueHarvest
+    move sp 0
+    push station
+    jal SendLarreToTask
+ContinueHarvest:
+    lbns r0 potID position 0 Seeding 0
+    seq r2 r0 1
+    lbns r0 potID position 0 Mature 0
+    seq r1 r0 1
+    and r0 r2 r1
+    beqz r0 CheckNextDevice
+    move sp 0
+    push station
+    jal SendLarreToTask
+    ls r0 larre 255 OccupantHash
+    breq r0 0 5
+    move sp 0
+    push station
+    jal SendLarreToTask
+    jr -5
+    move sp 0
+    push outpos
+    jal SendLarreToTask
+    jr 2
+    j CheckNextDevice
+    j checkplant
+SendLarreToTask:
+    move sp 1
+    pop r0
+    sb -815193061 Setting r0
+    s larre Setting r0
+    l r0 larre Idle
+    brne r0 0 3
+    yield
+    jr -3
+    s larre Activate 1
+    sleep 2
+    move r0 1
+    j ra

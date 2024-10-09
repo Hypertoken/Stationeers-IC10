@@ -106,5 +106,4 @@ s Sorter Output left
 j start
 
 toCompost:
-s Sorter Output right
 j start

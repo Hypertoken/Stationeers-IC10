@@ -1,0 +1,37 @@
+# Switch on-off and see the pin's names
+alias larre d0 #l.1
+yield #l.1
+move sp 6 #l.7
+push -2079156028 #l.7
+push 488360318 #l.8
+push 1780283880 #l.9
+IterateStackDevices:
+yield #l.12
+move r1 0 #l.13
+CheckNextDevice:
+add r3 r1 2 #l.16
+add sp 7 r1 #l.17
+pop r2 #l.17
+ble r1 19 16 #l.18
+j IterateStackDevices #l.19
+add r1 r1 1 #l.21
+checkdead:
+lbns r0 -1841632400 r2 0 Occupied 0 #l.24
+bne r0 1 23 #l.24
+move sp 0 #l.25
+push r3 #l.25
+jal sendlarretotask #l.25
+j CheckNextDevice #l.28
+sendlarretotask:
+move sp 1 #l.30
+pop r0 #l.30
+s d0 Setting r0 #l.31
+l r0 d0 Idle #l.32
+bne r0 0 32 #l.32
+yield #l.33
+j 28 #l.34
+s d0 Activate 1 #l.35
+sleep 2 #l.36
+move r0 1 #l.37
+j ra #l.37
+# Compiled at 2024-09-25 20:14 by Exca's Basic10.

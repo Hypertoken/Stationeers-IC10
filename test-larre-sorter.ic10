@@ -1,0 +1,125 @@
+alias gassensor d0
+alias n2pump d1
+alias o2pump d2
+alias co2pump d3
+alias pMem d4
+alias bPower d5
+###############SETUP####################
+define minutesOfLight 8 #define these to the optimal values for your plants.
+define minutesOfDark 3
+define FULL 20 #400 is the max held
+###############DEVICES##################
+define aComp 446212963 # HASH For composter
+define iChute -850484480 # HASH for Import Chute
+define growLight -1758710260 # HASH for Growlights
+define CENTRIFUGE 690945935
+define SILO 1155865682
+define sDisplay -815193061
+define dTimer HASH("Grow Light Timer")
+define mDisplay -53151617
+define lDisplay -1949054743
+define trays -1841632400
+define Analyzer 1036015121
+define ghAnal HASH("GH Analyzer")
+define genAnal HASH("GEN Cable Analyzer")
+##############VARIABLES##################
+alias timer r15
+alias offTime r14
+alias totalTime r13
+alias reagents r12
+alias door r11
+alias onTime r10
+############INITIAL SETTINGS############
+define left 0 # Sorter left
+define right 1 # Sorter Right
+sb lDisplay Mode 1
+sb mDisplay Mode 1
+##########TIMER CALCULATIONS############
+mul offTime minutesOfLight 120 #calculate growlight ON cycle tick (2 per second)
+floor offTime offTime # round down to integer
+mul onTime minutesOfDark 120 #calculate growlight OFF cycle tick
+floor onTime onTime # round down to integer
+add totalTime onTime offTime # add both for total.
+l timer db Setting #get housing timer value to prevent light stress during modifications
+mul timer timer 120 # calculate housing timer cycle tick
+floor timer timer # again round down.
+#################LOOP###################
+start:
+yield
+add timer timer 1
+brle timer totalTime 2
+move timer 0
+brge timer offTime 4
+sbn sDisplay dTimer Color Color.Pink
+sub r0 offTime timer
+jr 3
+sbn sDisplay dTimer Color Color.Purple
+sub r0 totalTime timer
+div r0 r0 2
+trunc r0 r0
+sbn sDisplay dTimer Setting r0
+div r0 timer 120
+s db Setting r0 #write the cycle time in minutes to the housing
+slt r0 timer offTime
+sb growLight On r0
+###########DISPLAY EFFICIENCY##############
+lbs r0 trays 0 Efficiency 0
+sb lDisplay Setting r0
+##############HANDLE COMPOST###############
+lbs r0 aComp 1 Occupied 0 # Is export slot occupied (Chutes are full)
+seq r2 r0 0 # Register True if export slot is empty (ready to process)
+lb r0 aComp Quantity 0 # Quantity ready to process (requires 5)
+sgt r1 r0 5 # Register True if quantity is over 5 (ready to process)
+and r0 r2 r1 # Register whether both requirements are met
+beqz r0 turnoff # If either requirement is unmet branch to turnoff;
+sb aComp Activate 1 # Otherwise Activate
+j handleChute # Check import chute
+turnoff:
+sb aComp Activate 0 # Do not activate
+##############HANDLE DECAYED###############
+handleDecayed:
+lb r0 SILO Quantity 0 # Putting food into the silo turns it to decayed food
+brge r0 20 2
+j handleCentrifuge
+emptyDecayed:
+sb SILO Open 1
+lb r0 SILO Quantity 0
+breqz r0 2
+j emptyDecayed
+sb SILO Open 0
+#############HANDLE CENTRIFUGE##############
+handleCentrifuge:
+lb reagents CENTRIFUGE Reagents 0
+lb door CENTRIFUGE Open 0
+bgtz door closeCentrifuge
+bge reagents FULL purgeCentrifuge
+j dopower
+purgeCentrifuge:
+sb CENTRIFUGE Open 1
+j dopower
+closeCentrifuge:
+bnez reagents start
+sb CENTRIFUGE Open 0
+j dopower
+##############HANDLE POWER STUFF#############
+dopower:
+lbn r0 Analyzer ghAnal PowerActual 0
+lbn r1 Analyzer genAnal PowerActual 0
+s pMem Setting r1
+sub r0 r1 r0
+div r0 r0 1000
+s pMem Setting r0
+l r0 bPower Setting
+sb mDisplay Setting r0
+j start
+##############HANDLE ATMOSPHERE#############
+handleAtmo:
+l r0 gassensor RatioOxygen
+sle r1 r0 0.23
+s o2pump On r1
+l r0 gassensor RatioNitrogen
+sle r1 r0 0.23
+s n2pump On r1
+l r0 gassensor RatioCarbonDioxide
+sle r1 r0 0.48
+s co2pump On r1

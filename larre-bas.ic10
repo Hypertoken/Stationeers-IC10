@@ -1,0 +1,122 @@
+alias larre d0      # Hydroponic LArRE
+alias seedbin d1    # Export Bin
+alias fertbin d2    # Export Bin
+alias outbin d3     # Import Bin (Drop bin)
+define outpos 23    # Station of Import Bin (Drop pos)
+define seedpos 22   # Station of Seed Bin
+define fertpos 1    # Station of Fertilizer Bin
+move sp 6
+push HASH("D1")
+push HASH("D2")
+push HASH("D3")
+push HASH("D4")
+push HASH("D5")
+push HASH("D6")
+push HASH("D7")
+push HASH("D8")
+push HASH("D9")
+push HASH("D10")
+push HASH("D11")
+push HASH("D12")
+push HASH("D13")
+push HASH("D14")
+push HASH("D15")
+push HASH("D16")
+push HASH("D17")
+push HASH("D18")
+push HASH("D19")
+push HASH("D20")
+Iterate:
+yield
+move r5 0 
+CheckNextDevice:
+add r4 r5 2
+add sp 7 r5
+pop r3
+brle r5 19 2
+j Iterate
+add r5 r5 1
+lbns r0 -1841632400 r3 0 Occupied 0
+seq r2 r0 1
+lbns r0 -1841632400 r3 0 Health 0
+slt r1 r0 1
+and r0 r2 r1
+breqz r0 4
+move sp 0
+push r4
+jal domove
+checkplant:
+lbns r0 -1841632400 r3 0 Occupied 0
+seq r2 r0 1
+ls r0 d1 0 Occupied
+seq r1 r0 0 #l.54
+or r0 r2 r1 #l.54
+breqz r0 2 #l.54
+j checkfert #l.55
+ls r0 d0 0 Occupied #l.57
+brne r0 0 4 #l.57
+move sp 0 #l.58
+push seedpos #l.58
+jal domove #l.58
+checkfert:
+lbns r0 -1841632400 r3 1 Occupied 0 #l.62
+seq r2 r0 1 #l.62
+ls r1 d2 0 Occupied #l.62
+seq r0 r1 0 #l.62
+or r1 r2 r0 #l.62
+breqz r1 7 #l.62
+ls r0 d0 0 Occupied #l.63
+bne r0 1 harvest #l.63
+move sp 0 #l.64
+push r4 #l.64
+jal domove #l.64
+j harvest #l.66
+move sp 0 # ADD FERTILIZER
+push fertpos #l.70
+jal domove #l.70
+move sp 0 #l.71
+push r4 #l.71
+jal domove #l.71
+ls r0 d0 0 Occupied #l.72
+bne r0 1 harvest #l.72
+move sp 0 #l.73
+push r4 #l.73
+jal domove #l.73
+jr -5 #l.74
+harvest:
+lbns r0 -1841632400 r3 0 Seeding 0 #l.77
+brne r0 1 11 #l.77
+move sp 0 #l.78
+push r4 #l.78
+jal domove #l.78
+lbns r0 -1841632400 r3 0 Mature 0 # CONTINUE HARVEST
+brne r0 1 6 
+move sp 0 
+push r4 
+jal domove 
+jr -5
+j CheckNextDevice 
+move sp 0 #DROPOFF 
+push outpos 
+jal domove
+s d3 Open 0 
+lbns r0 -1841632400 r3 0 Occupied 0 
+brne r0 1 6 
+move sp 0 
+push outpos 
+jal domove 
+s d3 Open 0 
+j CheckNextDevice 
+j checkplant 
+domove:
+move sp 1 
+pop r0 
+s d0 Setting r0
+l r0 d0 Idle  #WAITING
+brne r0 0 3
+yield
+jr -3
+s d0 Activate 1
+sleep 2
+move r0 1
+j ra

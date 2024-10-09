@@ -1,0 +1,130 @@
+################## SETUP ##################
+define minutesOfLight 8 # define these to the optimal values for your plants.
+define minutesOfDark 3 # 8min of light and 3min of dark works for most plants.
+define outpos 21 # Station number for Drop off bin
+define fertpos 22 # Station number for fertilizer bin
+################# DEVICES #################
+alias LArRE d0 # Larre on Pin 0
+alias outBin d1 # Drop off bin on Pin 1
+alias fertBin d2 # Fertilizer bin on Pin 2
+define growLight -1758710260 # HASH for Growlights
+define pot -1841632400 # HASH for Hydroponics Device
+push HASH("0") # This is the larre Dock
+push HASH("D1") # This is the list of Hydroponic device names in order of station number.
+push HASH("D2")
+push HASH("D3")
+push HASH("D4")
+push HASH("D5")
+push HASH("D6")
+push HASH("D7")
+push HASH("D8")
+push HASH("D9")
+push HASH("D10")
+push HASH("D11")
+push HASH("D12")
+push HASH("D13")
+push HASH("D14")
+push HASH("D15")
+push HASH("D16")
+push HASH("D17")
+push HASH("D18")
+push HASH("D19")
+push HASH("D20")
+################ VARIABLES ################
+alias timer r15
+alias offTime r14
+alias totalTime r13
+alias station r12
+alias hash r11
+################### INIT ##################
+mul offTime minutesOfLight 120 # calculate growlight ON cycle (2 ticks per second)
+mul totalTime minutesOfDark 120 # growlight OFF cycle (convert minutes to ticks)
+add totalTime totalTime offTime # add both for total.
+l timer db Setting # get housing timer value to prevent light stress during modifications
+s LArRE Setting -1
+l r0 LArRE Idle
+yield
+breqz r0 -2
+l tstations LArRE Setting
+################## LOOP ###################
+reset:
+move station 0
+start:
+yield
+add timer timer 1 # Increment timer variable every frame
+brle timer totalTime 2 # Skip next line if timer is less than totalTime
+move timer 0 # Reset timer
+s db Setting timer # write the timer to the IC housing
+slt r0 timer offTime # Register whether timer is less than offTime
+sb growLight On r0 # turn lights on/off accordingly
+add station station 1 # Increment Station number
+bgt station tstations reset # Reset when at end of total Stations
+beq station outpos start # Skip if output bin
+beq station fertpos start # Skip if fertilizer bin
+get hash db station # Get Pot Hash name from IC
+lbns r0 pot hash 0 Occupied 0 # Check if pot has a plant
+beqz r0 start # if not check next pot
+# Check for dead plant and clear it.
+checkdead:
+lbns r0 pot hash 0 Health 0 # Check the plant health
+bge r0 1 checkfert # If not dead go check fertilizer
+move r3 station # if dead clear it
+jal sendlarretotask
+j start # check next pot
+# If there is a plant Check if there is fertilizer in the pot.
+checkfert:
+lbns r0 pot hash 1 Occupied 0 # Check if there is fertilizer in the pot
+beq r0 1 harvestseed # Skip to harvest if so
+ls r0 fertBin 0 Occupied # Check if there is fertilizer in the fert bin
+beqz r0 harvestseed # Skip to harvest if not
+# If we have fertilizer and it needs it add it.
+addfert:
+move r3 fertpos # Get the fertilizer from the bin
+jal sendlarretotask
+move r3 station # Add the fertilizer to the pot
+jal sendlarretotask
+# Check if the plant is seeding and start harvesting if so
+harvestseed:
+lbns r0 pot hash 0 Seeding 0 # Check if there is a seeding plant in the pot
+bne r0 1 start # If the plant isn't seeding go to next pot
+move r3 station # Other wise harvest the seed
+jal sendlarretotask
+# Check if the plant is mature and harvest it if so
+harvestplant:
+lbns r0 pot hash 0 Mature 0 # Check if the plant is mature to harvest
+bne r0 1 Dropoff # If not go to dropoff bin.
+move r3 station 
+jal sendlarretotask
+ls r0 LArRE 0 OccupantHash
+bne r0 215486157 harvestplant
+move r3 outpos 
+jal sendlarretotask
+s outBin Open 0
+j harvestplant
+Dropoff:
+move r3 outpos
+jal sendlarretotask
+s outBin Open 0
+lbns r0 pot hash 0 Occupied 0
+beqz r0 replant
+jal sendlarretotask
+s outBin Open 0
+j start
+replant:
+move r3 station
+jal sendlarretotask
+j start
+sendlarretotask:
+s LArRE Setting r3
+l r0 LArRE Idle
+yield
+add timer timer 1
+breqz r0 -3
+s LArRE Activate 1
+sleep 2
+j ra
+
+
+
+
+
